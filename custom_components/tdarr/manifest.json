@@ -1,0 +1,15 @@
+{
+    "domain": "tdarr",
+    "name": "Tdarr",
+    "config_flow": true,
+    "documentation": "https://github.com/itchannel/tdarr-ha",
+    "issue_tracker": "https://github.com/itchannel/tdarr-ha/issues",
+    "version": "1.0.0",
+    "requirements": [],
+    "ssdp": [],
+    "zeroconf": [],
+    "homekit": {},
+    "dependencies": [],
+    "iot_class": "cloud_polling",
+    "codeowners": ["@itchannel"]
+  }

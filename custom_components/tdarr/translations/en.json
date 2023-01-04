@@ -1,0 +1,30 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Account is already configured"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_auth": "Invalid authentication",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "serverip": "Tdarr Server IP",
+                    "serverport": "Tdarr Server Port"
+                }
+            }
+        }
+    },
+        "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "update_interval": "Interval to poll Controller (Seconds)"
+                },
+                "description": "Configure Controller Options"
+            }
+        }
+    }
+}
