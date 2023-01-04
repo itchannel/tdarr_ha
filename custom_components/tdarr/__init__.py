@@ -18,7 +18,9 @@ from .const import (
     DOMAIN,
     MANUFACTURER,
     SERVERIP,
-    SERVERPORT
+    SERVERPORT,
+    UPDATE_INTERVAL,
+    UPDATE_INTERVAL_DEFAULT
 )
 
 from .tdarr import Server
@@ -40,15 +42,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     serverip = entry.data[SERVERIP]
     serverport= entry.data[SERVERPORT]
 
-    #if UPDATE_INTERVAL in entry.options:
-    #    update_interval = entry.options[UPDATE_INTERVAL]
-    #else:
-    #    update_interval = UPDATE_INTERVAL_DEFAULT
-    #_LOGGER.debug(update_interval)
+    if UPDATE_INTERVAL in entry.options:
+        update_interval = entry.options[UPDATE_INTERVAL]
+    else:
+        update_interval = UPDATE_INTERVAL_DEFAULT
+
     for ar in entry.data:
         _LOGGER.debug(ar)
 
-    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport)
+    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval)
 
     await coordinator.async_refresh()  # Get initial data
 
@@ -84,7 +86,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator to handle fetching new data about the Tdarr Controller."""
 
-    def __init__(self, hass, serverip, serverport):
+    def __init__(self, hass, serverip, serverport, update_interval):
         """Initialize the coordinator and set up the Controller object."""
         self._hass = hass
         self.serverip = serverip
@@ -96,7 +98,7 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=60),
+            update_interval=timedelta(seconds=update_interval),
         )
 
     async def _async_update_data(self):
@@ -110,9 +112,7 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
 
                 data["nodes"] = await self._hass.async_add_executor_job(
                     self.tdarr.getNodes
-                )
-
-                
+                )             
 
      
 

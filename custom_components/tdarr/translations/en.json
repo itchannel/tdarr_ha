@@ -11,8 +11,9 @@
         "step": {
             "user": {
                 "data": {
-                    "serverip": "Tdarr Server IP",
-                    "serverport": "Tdarr Server Port"
+                    "username": "Apex Controller Username",
+                    "password": "Apex Controller Password",
+                    "deviceip": "Apex Controller IP"
                 }
             }
         }

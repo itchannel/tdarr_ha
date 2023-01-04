@@ -18,10 +18,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     for key, value in entry.data["nodes"].items():
         sensor = TdarrSensor(entry, value, config_entry.options, "node")
         async_add_entities([sensor], True)
-        fps = 0
-        for key1, value1 in value["workers"].items():
-            fps += value1["fps"]
-        value["fps"] = fps
         sensor = TdarrSensor(entry, value, config_entry.options, "nodefps")
         async_add_entities([sensor], True)
 
@@ -37,7 +33,6 @@ class TdarrSensor(
         self.type = type
         self._attr = {}
         self.coordinator = coordinator
-        _LOGGER.debug(self.sensor)
         if self.type == "server":
             self._device_id = "tdarr_server"
         elif self.type == "node":
@@ -50,17 +45,20 @@ class TdarrSensor(
     def get_value(self, ftype):
         if ftype == "state":
             if self.type == "server":
-                return self.sensor["status"]
+                return self.coordinator.data["server"]["status"]
             elif self.type == "node":
                 return "Online"
             elif self.type == "nodefps":
-                return self.sensor["fps"]
+                fps = 0
+                for key1, value in self.coordinator.data["nodes"][self.sensor["_id"]]["workers"].items():
+                    fps += value["fps"]
+                return fps
 
         if ftype == "attributes":
             if self.type == "server":
-                return self.sensor
+                return self.coordinator.data["server"]
             elif self.type == "node":
-                return self.sensor
+                return self.coordinator.data["nodes"][self.sensor["_id"]]
             elif self.type == "nodefps":
                 return None
 
