@@ -4,7 +4,7 @@
     "config_flow": true,
     "documentation": "https://github.com/itchannel/tdarr-ha",
     "issue_tracker": "https://github.com/itchannel/tdarr-ha/issues",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "requirements": [],
     "ssdp": [],
     "zeroconf": [],
