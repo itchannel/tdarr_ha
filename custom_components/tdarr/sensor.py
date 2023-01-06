@@ -11,15 +11,17 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Entities from the config."""
     entry = hass.data[DOMAIN][config_entry.entry_id]
-
-
-    sensor = TdarrSensor(entry, entry.data["server"], config_entry.options, "server")
-    async_add_entities([sensor], True)
+    sensors = []
+    # Server Status Sensor
+    sensors.append(TdarrSensor(entry, entry.data["server"], config_entry.options, "server"))
+    # Server Stats Sensors
+    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_spacesaved"))
+    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodefilesremaining"))
+    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodedcount"))
     for key, value in entry.data["nodes"].items():
-        sensor = TdarrSensor(entry, value, config_entry.options, "node")
-        async_add_entities([sensor], True)
-        sensor = TdarrSensor(entry, value, config_entry.options, "nodefps")
-        async_add_entities([sensor], True)
+        sensors.append(TdarrSensor(entry, value, config_entry.options, "node"))
+        sensors.append(TdarrSensor(entry, value, config_entry.options, "nodefps"))
+    async_add_entities(sensors, True)
 
 
 class TdarrSensor(
@@ -39,6 +41,8 @@ class TdarrSensor(
             self._device_id = "tdarr_node_" + self.sensor["_id"]
         elif self.type == "nodefps":
             self._device_id = "tdarr_node_" + self.sensor["_id"] + "_fps"
+        else:
+            self._device_id = "tdarr_" + self.type
         # Required for HA 2022.7
         self.coordinator_context = object()
 
@@ -53,13 +57,21 @@ class TdarrSensor(
                 for key1, value in self.coordinator.data["nodes"][self.sensor["_id"]]["workers"].items():
                     fps += value["fps"]
                 return fps
+            elif self.type == "stats_spacesaved":
+                return round(self.coordinator.data["stats"]["sizeDiff"], 2)
+            elif self.type == "stats_transcodefilesremaining":
+                return self.coordinator.data["stats"]["table1Count"]
+            elif self.type == "stats_transcodedcount":
+                return self.coordinator.data["stats"]["table2Count"]
 
         if ftype == "attributes":
             if self.type == "server":
                 return self.coordinator.data["server"]
             elif self.type == "node":
                 return self.coordinator.data["nodes"][self.sensor["_id"]]
-            elif self.type == "nodefps":
+            elif self.type == "stats_spacesaved":
+                return self.coordinator.data["stats"]
+            else:
                 return None
 
     @property
@@ -70,6 +82,8 @@ class TdarrSensor(
             return "tdarr_node_" + self.sensor["_id"]
         elif self.type == "nodefps":
             return "tdarr_node_" + self.sensor["_id"] + "_fps"
+        else:
+            return "tdarr_" + self.type
 
     @property
     def state(self):
@@ -85,7 +99,16 @@ class TdarrSensor(
 
     @property
     def unit_of_measurement(self):
-        return None
+        if self.type == "nodefps":
+            return "FPS"
+        elif self.type == "stats_spacesaved":
+            return "GB"
+        elif self.type == "stats_transcodefilesremaining":
+            return "Files"
+        elif self.type == "stats_transcodedcount":
+            return "Files"
+        else:
+            return None
 
     @property
     def icon(self):

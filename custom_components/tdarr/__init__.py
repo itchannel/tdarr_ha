@@ -112,7 +112,11 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
 
                 data["nodes"] = await self._hass.async_add_executor_job(
                     self.tdarr.getNodes
-                )             
+                )          
+
+                data["stats"] = await self._hass.async_add_executor_job(
+                    self.tdarr.getStats
+                )   
 
      
 
