@@ -1,5 +1,7 @@
 # Tdarr Home Assistant Integration
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/itchannel)
 
 ## Install
@@ -12,6 +14,10 @@ Use HACS and add as a custom repo. Once the integration is installed go to your 
 - Node information
 - Node FPS
 - Switches to pause/unpause a node
+
+## Additional Information
+
+All sensors display any available additional info in the sensor attributes section. This information can be used by you to create more verbose sensors using Home Assistant templates. 
 
 
 This is a custom integration I have created to allow me to use HA to control my nodes such as pausing/unpausing transcoding depending on how much excess solar electricity I have. 

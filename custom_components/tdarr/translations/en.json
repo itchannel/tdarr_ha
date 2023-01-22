@@ -4,16 +4,15 @@
             "already_configured": "Account is already configured"
         },
         "error": {
-            "cannot_connect": "Failed to connect",
+            "cannot_connect": "Failed to connect to Tdarr Server",
             "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
+            "unknown": "Unexpected error (Enable debug for more info)"
         },
         "step": {
             "user": {
                 "data": {
-                    "username": "Apex Controller Username",
-                    "password": "Apex Controller Password",
-                    "deviceip": "Apex Controller IP"
+                    "serverip": "Tdarr Server IP",
+                    "serverport": "Tdarr Server Port"
                 }
             }
         }
@@ -22,9 +21,9 @@
         "step": {
             "init": {
                 "data": {
-                    "update_interval": "Interval to poll Controller (Seconds)"
+                    "update_interval": "Interval to poll Server (Seconds)"
                 },
-                "description": "Configure Controller Options"
+                "description": "Configure Server Options"
             }
         }
     }

@@ -1,5 +1,7 @@
 ## **Changelog**
 
+### Version 1.03
+- Improved error handling
 ### Version 1.02
 - Add unit_of_measurement to sensors
 - Add 3 general statistic sensors

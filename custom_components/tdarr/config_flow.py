@@ -4,11 +4,10 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
 from homeassistant.core import callback
-
+from requests.exceptions import ConnectionError
 
 from .const import (
     DOMAIN,
-    MANUFACTURER,
     SERVERIP,
     SERVERPORT,
     UPDATE_INTERVAL,
@@ -33,14 +32,11 @@ async def validate_input(hass: core.HomeAssistant, data):
     
     tdarr = Server(data[SERVERIP], data[SERVERPORT])
 
-    try:
-        result = await hass.async_add_executor_job(tdarr.getNodes)
-    except Exception as ex:
-        raise InvalidAuth from ex
 
+    result = await hass.async_add_executor_job(tdarr.getNodes)#
     if not result:
-        _LOGGER.error("Failed to authenticate with Tdarr Server")
-        raise CannotConnect
+        _LOGGER.error("Failed to connect to Tdarr Server")
+        raise ConnectionError
 
     # Return info that you want to store in the config entry.
     return {"title": f"Tdarr Server ({data[SERVERIP]})"}
@@ -58,15 +54,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 info = await validate_input(self.hass, user_input)
                 return self.async_create_entry(title=info["title"], data=user_input)
-            except CannotConnect:
-                print("EXCEPT")
+            except ConnectionError:
                 errors["base"] = "cannot_connect"
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
-            except InvalidVin:
-                errors["base"] = "invalid_vin"
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
+            except Exception as ex:  # pylint: disable=broad-except
+                _LOGGER.exception(ex)
                 errors["base"] = "unknown"
 
         return self.async_show_form(
@@ -99,13 +90,4 @@ class OptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
 
 
-class CannotConnect(exceptions.HomeAssistantError):
-    """Error to indicate we cannot connect."""
 
-
-class InvalidAuth(exceptions.HomeAssistantError):
-    """Error to indicate there is invalid auth."""
-
-
-class InvalidVin(exceptions.HomeAssistantError):
-    """Error to indicate the wrong vin"""
