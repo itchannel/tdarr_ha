@@ -13,7 +13,13 @@ Use HACS and add as a custom repo. Once the integration is installed go to your 
 - Server status
 - Node information
 - Node FPS
+- Library information and Statistics
 - Switches to pause/unpause a node
+
+## Screenshots
+![Paused Sensor](https://github.com/itchannel/screenshots/raw/main/tdarr_node_paused.jpg)
+
+![Library Sensor](https://github.com/itchannel/screenshots/raw/main/tdarr_library_sensor.jpg)
 
 ## Additional Information
 

@@ -1,5 +1,6 @@
 ## **Changelog**
-
+### Version 1.04
+- Add library support (Show details for individual libraries)
 ### Version 1.03
 - Improved error handling
 ### Version 1.02
