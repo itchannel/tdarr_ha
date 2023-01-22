@@ -36,7 +36,7 @@ class Server(object):
             "timeout":1000
         }
         r = requests.post(self.baseurl + 'cruddb', json = post)
-        _LOGGER.debug(r.text)
+        #_LOGGER.debug(r.text)
         if r.status_code == 200:
             _LOGGER.debug(r.text)
             return r.json()

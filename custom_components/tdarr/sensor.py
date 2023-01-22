@@ -18,6 +18,14 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_spacesaved"))
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodefilesremaining"))
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodedcount"))
+    # Server Library Sensors
+    id = 0
+    for value in entry.data["stats"]["pies"]:
+        value.insert(0, id)
+        _LOGGER.debug(value)
+        sensors.append(TdarrSensor(entry, value, config_entry.options, "library"))
+        id += 1
+    # Server Node Sensors
     for key, value in entry.data["nodes"].items():
         sensors.append(TdarrSensor(entry, value, config_entry.options, "node"))
         sensors.append(TdarrSensor(entry, value, config_entry.options, "nodefps"))
@@ -41,6 +49,8 @@ class TdarrSensor(
             self._device_id = "tdarr_node_" + self.sensor["_id"]
         elif self.type == "nodefps":
             self._device_id = "tdarr_node_" + self.sensor["_id"] + "_fps"
+        elif self.type == "library":
+            self._device_id = "tdarr_library_" + self.sensor[1]
         else:
             self._device_id = "tdarr_" + self.type
         # Required for HA 2022.7
@@ -63,6 +73,8 @@ class TdarrSensor(
                 return self.coordinator.data["stats"]["table1Count"]
             elif self.type == "stats_transcodedcount":
                 return self.coordinator.data["stats"]["table2Count"]
+            elif self.type == "library":
+                return self.coordinator.data["stats"]["pies"][self.sensor[0]][2]
 
         if ftype == "attributes":
             if self.type == "server":
@@ -71,6 +83,26 @@ class TdarrSensor(
                 return self.coordinator.data["nodes"][self.sensor["_id"]]
             elif self.type == "stats_spacesaved":
                 return self.coordinator.data["stats"]
+            elif self.type == "library":
+                library = self.coordinator.data["stats"]["pies"][self.sensor[0]]
+                data = {}
+                data["Total Files"] = library[2]
+                data["Number of Transcodes"] = library[3]
+                data["Space Saved (GB)"] = round(library[4], 0)
+                data["Number of Health Checks"] = library[5]
+                codecs = {}
+                for codec in library[8]:
+                    codecs[codec["name"]] = codec["value"]
+                data["Codecs"] = codecs
+                containers = {}
+                for container in library[9]:
+                    containers[container["name"]] = container["value"]
+                data["Containers"] = containers
+                qualities = {}
+                for quality in library[10]:
+                    qualities[quality["name"]] = quality["value"]
+                data["Resolutions"] = qualities
+                return data
             else:
                 return None
 
@@ -82,6 +114,8 @@ class TdarrSensor(
             return "tdarr_node_" + self.sensor["_id"]
         elif self.type == "nodefps":
             return "tdarr_node_" + self.sensor["_id"] + "_fps"
+        elif self.type == "library":
+            return "tdarr_library_" + self.sensor[1]
         else:
             return "tdarr_" + self.type
 
@@ -107,6 +141,8 @@ class TdarrSensor(
             return "Files"
         elif self.type == "stats_transcodedcount":
             return "Files"
+        elif self.type == "library":
+            return "Total Files"
         else:
             return None
 
