@@ -4,13 +4,13 @@ import re
 from homeassistant.helpers.entity import Entity
 
 from . import TdarrEntity
-from .const import DOMAIN
+from .const import DOMAIN, COORDINATOR
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Entities from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id]
+    entry = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
     sensors = []
     # Server Status Sensor
     sensors.append(TdarrSensor(entry, entry.data["server"], config_entry.options, "server"))
