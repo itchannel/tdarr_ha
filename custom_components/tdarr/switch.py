@@ -4,13 +4,13 @@ import time
 from homeassistant.components.switch import SwitchEntity
 
 from . import TdarrEntity
-from .const import DOMAIN
+from .const import DOMAIN, COORDINATOR
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Switch from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id]
+    entry = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
     
     for key, value in entry.data["nodes"].items():
         sw = Switch(entry, value, config_entry.options)

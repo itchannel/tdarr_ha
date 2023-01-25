@@ -20,7 +20,8 @@ from .const import (
     SERVERIP,
     SERVERPORT,
     UPDATE_INTERVAL,
-    UPDATE_INTERVAL_DEFAULT
+    UPDATE_INTERVAL_DEFAULT,
+    COORDINATOR
 )
 
 from .tdarr import Server
@@ -53,11 +54,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval)
 
     await coordinator.async_refresh()  # Get initial data
+    
+    # Registers update listener to update config entry when options are updated.
+    tdarr_options_listener = entry.add_update_listener(options_update_listener)
 
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
 
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    hass.data[DOMAIN][entry.entry_id] = {
+        COORDINATOR : coordinator,
+        "tdarr_options_listener": tdarr_options_listener
+    }
 
     for component in PLATFORMS:
         hass.async_create_task(
@@ -82,6 +89,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
+
+async def options_update_listener(
+    hass: HomeAssistant,  entry: ConfigEntry 
+    ):
+        _LOGGER.debug("OPTIONS CHANGE")
+        await hass.config_entries.async_reload(entry.entry_id)
 
 class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator to handle fetching new data about the Tdarr Controller."""
