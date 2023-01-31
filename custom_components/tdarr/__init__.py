@@ -54,9 +54,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval)
 
     await coordinator.async_refresh()  # Get initial data
-    
-    # Registers update listener to update config entry when options are updated.
+       # Registers update listener to update config entry when options are updated.
     tdarr_options_listener = entry.add_update_listener(options_update_listener)
+
+   
 
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
@@ -65,12 +66,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         COORDINATOR : coordinator,
         "tdarr_options_listener": tdarr_options_listener
     }
+        
 
     for component in PLATFORMS:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, component)
         )
 
+    async def async_refresh_library_service(service_call):
+        await hass.async_add_executor_job(
+            refresh_library, hass, service_call, coordinator
+        )
+
+    hass.services.async_register(
+        DOMAIN,
+        "refresh_library", 
+        async_refresh_library_service
+    )
 
 
     return True
@@ -85,11 +97,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
             ]
         )
     )
+    _LOGGER.debug(hass.data[DOMAIN][entry.entry_id])
     hass.data[DOMAIN][entry.entry_id]["tdarr_options_listener"]()
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
+
+def refresh_library(hass, service, coordinator):
+    libraryid = service.data.get("library", "")
+    mode = service.data.get("mode", "scanFindNew")
+    folderpath = service.data.get("folderpath", "")
+    status = coordinator.tdarr.refreshLibrary(libraryid, mode, folderpath)
+    if "ERROR" in status:
+        _LOGGER.debug(status)
+        raise HomeAssistantError(status["ERROR"])
 
 async def options_update_listener(
     hass: HomeAssistant,  entry: ConfigEntry 

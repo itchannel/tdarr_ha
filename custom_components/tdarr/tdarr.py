@@ -36,9 +36,7 @@ class Server(object):
             "timeout":1000
         }
         r = requests.post(self.baseurl + 'cruddb', json = post)
-        #_LOGGER.debug(r.text)
         if r.status_code == 200:
-            _LOGGER.debug(r.text)
             return r.json()
         else:
             return "ERROR"
@@ -60,3 +58,47 @@ class Server(object):
             return r.text
         else:
             return "ERROR"
+
+    def refreshLibrary(self, libraryname, mode, folderpath):
+        stats = self.getStats()
+        libid = None
+        _LOGGER.debug(mode)
+
+        if mode == "":
+            mode = "scanFindNew"
+        for lib in stats["pies"]:
+            if libraryname in lib:
+                libid = lib[1]
+                _LOGGER.debug(lib[1])
+
+        if libid is None:
+            return {"ERROR": "Library Name not found"}
+
+
+        data = {
+            "data": {
+                "scanConfig": {
+                    "dbID" : libid,
+                    "arrayOrPath": folderpath,
+                    "mode": mode
+                }
+            }
+        }
+
+        r = requests.post(self.baseurl + "scan-files", json=data)
+
+        if r.status_code == 200:
+            _LOGGER.debug(r.text)
+            return {"SUCCESS"}
+        else:
+            return {"ERROR": r.text}
+
+
+
+            
+    
+
+
+    
+
+    
