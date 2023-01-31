@@ -1,4 +1,8 @@
 ## **Changelog**
+### Version 1.07
+- Add refresh library service
+### Version 1.06
+- Fix options unloading
 ### Version 1.05
 - Auto reload on options change
 ### Version 1.04
