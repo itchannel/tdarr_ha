@@ -1,4 +1,8 @@
 ## **Changelog**
+### Version 1.08
+- Fix error when loading with 0 nodes active
+- Fix version error on initial load
+- Add auto reload when new nodes are added to tdarr
 ### Version 1.07
 - Add refresh library service
 ### Version 1.06
