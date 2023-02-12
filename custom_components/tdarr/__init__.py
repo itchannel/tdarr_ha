@@ -195,11 +195,17 @@ class TdarrEntity(CoordinatorEntity):
         """Return device information about this device."""
         if self._device_id is None:
             return None
+        
+        sw_version = "Unknown"
+
+        if "version" in self.coordinator.data["server"]:
+            sw_version = self.coordinator.data["server"]["version"]
+
 
         return {
             "identifiers": {(DOMAIN, self.coordinator.serverip)},
             "name": f"Tdarr Server ({self.coordinator.serverip})",
             #"hw_version": self.coordinator.data["system"]["hardware"],
-            "sw_version": self.coordinator.data["server"]["version"],
+            "sw_version": sw_version,
             "manufacturer": MANUFACTURER
         }

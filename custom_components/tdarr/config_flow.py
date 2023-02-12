@@ -33,7 +33,7 @@ async def validate_input(hass: core.HomeAssistant, data):
     tdarr = Server(data[SERVERIP], data[SERVERPORT])
 
 
-    result = await hass.async_add_executor_job(tdarr.getNodes)#
+    result = await hass.async_add_executor_job(tdarr.getStatus)#
     if not result:
         _LOGGER.error("Failed to connect to Tdarr Server")
         raise ConnectionError
@@ -88,6 +88,7 @@ class OptionsFlow(config_entries.OptionsFlow):
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
+
 
 
 
