@@ -55,6 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     await coordinator.async_refresh()  # Get initial data
        # Registers update listener to update config entry when options are updated.
+    #_LOGGER.debug(coordinator.data)
     tdarr_options_listener = entry.add_update_listener(options_update_listener)
 
    
@@ -153,6 +154,25 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
                 data["stats"] = await self._hass.async_add_executor_job(
                     self.tdarr.getStats
                 )   
+                if self.data is not None:
+                    _LOGGER.debug(self.data)
+                    oldnodes = len(self.data["nodes"])
+                    _LOGGER.debug(len(self.data["nodes"]))
+                else:
+                    oldnodes = len(data["nodes"])
+                #_LOGGER.debug(len(self.data["nodes"])
+                if oldnodes != len(data["nodes"]):
+                    _LOGGER.debug("Node Change Detected config reload required")
+                    # Reload integration to pick up new/changed nodes
+                    current_entries = self._hass.config_entries.async_entries(DOMAIN)
+        
+
+                    reload_tasks = [
+                        self._hass.config_entries.async_reload(entry.entry_id)
+                        for entry in current_entries
+                    ]
+
+                    await asyncio.gather(*reload_tasks)
 
      
 
@@ -164,6 +184,18 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(
                 f"Error communicating with Tdarr for {self.serverip}"
             ) from ex
+
+    async def reloadentities(self):
+        _LOGGER.debug("Reloading?")
+        current_entries = self._hass.config_entries.async_entries(DOMAIN)
+        
+
+        reload_tasks = [
+            self._hass.config_entries.async_reload(entry.entry_id)
+            for entry in current_entries
+        ]
+
+        await asyncio.gather(*reload_tasks)
 
 class TdarrEntity(CoordinatorEntity):
     def __init__(
