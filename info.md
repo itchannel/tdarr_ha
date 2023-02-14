@@ -1,4 +1,6 @@
 ## **Changelog**
+### Version 1.09
+- Fix node naming in latest Tdarr version (Now uses NodeName)
 ### Version 1.08
 - Fix error when loading with 0 nodes active
 - Fix version error on initial load
