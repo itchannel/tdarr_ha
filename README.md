@@ -23,7 +23,7 @@ Use HACS and add as a custom repo. Once the integration is installed go to your 
 
 ## Additional Information
 
-If a new node is added to Tdarr the integration will need to be manually reloaded in HA by going to "Integrations" and clicking Reload on the integration. This is only applicable to new nodes. If anyone knows an easy way to reload an integration in code let me know. 
+The integration will automatically add new nodes as they come online. Old nodes that are no longer used will need to be manually deleted from HA if no longer used.
 
 All sensors display any available additional info in the sensor attributes section. This information can be used by you to create more verbose sensors using Home Assistant templates. 
 
