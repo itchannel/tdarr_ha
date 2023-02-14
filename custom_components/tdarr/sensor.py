@@ -56,6 +56,7 @@ class TdarrSensor(
         # Required for HA 2022.7
         self.coordinator_context = object()
 
+
     def get_value(self, ftype):
         if ftype == "state":
             if self.type == "server":
@@ -111,9 +112,15 @@ class TdarrSensor(
         if self.type == "server":
             return "tdarr_server"
         elif self.type == "node":
-            return "tdarr_node_" + self.sensor["_id"]
+            if "nodeName" in self.sensor:
+                return "tdarr_node_" + self.sensor["nodeName"]
+            else:
+                return "tdarr_node_" + self.sensor["_id"]
         elif self.type == "nodefps":
-            return "tdarr_node_" + self.sensor["_id"] + "_fps"
+            if "nodeName" in self.sensor:
+                return "tdarr_node_" + self.sensor["nodeName"] + "_fps"
+            else:
+                return "tdarr_node_" + self.sensor["_id"] + "_fps"
         elif self.type == "library":
             return "tdarr_library_" + self.sensor[1]
         else:
