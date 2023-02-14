@@ -1,6 +1,6 @@
 ## **Changelog**
 ### Version 1.09
-- Fix node naming in latest Tdarr version (Now uses NodeName)
+- Fix node naming in latest Tdarr version (Now uses NodeName, this will create a new sensor for each node as it uses a unique ID for entity ID but uses the original name for the sensor, preventing duplicate names)
 ### Version 1.08
 - Fix error when loading with 0 nodes active
 - Fix version error on initial load
