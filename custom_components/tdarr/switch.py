@@ -58,7 +58,11 @@ class Switch(TdarrEntity, SwitchEntity):
 
     @property
     def name(self):
-        return "tdarr_node_" + self.switch["_id"] + "_paused"
+        if "nodeName" in self.switch:
+            return "tdarr_node_" + self.switch["nodeName"] + "_paused"
+        else:
+            return "tdarr_node_" + self.switch["_id"] + "_paused"
+
 
     @property
     def device_id(self):
