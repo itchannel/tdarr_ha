@@ -46,9 +46,15 @@ class TdarrSensor(
         if self.type == "server":
             self._device_id = "tdarr_server"
         elif self.type == "node":
-            self._device_id = "tdarr_node_" + self.sensor["_id"]
+            if "nodeName" in self.sensor:
+                self._device_id = "tdarr_node_" + self.sensor["nodeName"]
+            else:
+                self._device_id = "tdarr_node_" + self.sensor["_id"]
         elif self.type == "nodefps":
-            self._device_id = "tdarr_node_" + self.sensor["_id"] + "_fps"
+            if "nodeName" in self.sensor:
+                self._device_id = "tdarr_node_" + self.sensor["nodeName"] + "_fps"
+            else:
+                self._device_id = "tdarr_node_" + self.sensor["_id"] + "_fps"
         elif self.type == "library":
             self._device_id = "tdarr_library_" + self.sensor[1]
         else:
