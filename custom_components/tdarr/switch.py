@@ -20,8 +20,10 @@ class Switch(TdarrEntity, SwitchEntity):
     """Define the Switch for turning ignition off/on"""
 
     def __init__(self, coordinator, switch, options):
-
-        self._device_id = "tdarr_node_" + switch["_id"] + "_paused"
+        if "nodeName" in switch:
+            self._device_id = "tdarr_node_" + switch["nodeName"] + "_paused"
+        else:
+            self._device_id = "tdarr_node_" + switch["_id"] + "_paused"
         self.switch = switch
         self.coordinator = coordinator
         self._state = None
