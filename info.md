@@ -1,4 +1,6 @@
 ## **Changelog**
+### Version 1.11
+- Fix versioning
 ### Version 1.10
 - Added Pause All switch
 ### Version 1.09
