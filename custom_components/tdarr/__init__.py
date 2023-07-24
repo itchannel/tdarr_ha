@@ -154,6 +154,10 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
                 data["stats"] = await self._hass.async_add_executor_job(
                     self.tdarr.getStats
                 )   
+                
+                data["globalsettings"] = await self._hass.async_add_executor_job(
+                    self.tdarr.getSettings
+                )
                 if self.data is not None:
                     _LOGGER.debug(self.data)
                     oldnodes = len(self.data["nodes"])

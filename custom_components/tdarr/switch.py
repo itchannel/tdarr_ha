@@ -16,12 +16,17 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         sw = Switch(entry, value, config_entry.options)
         async_add_entities([sw], False)
 
+    sw = Switch(entry, entry.data["globalsettings"], config_entry.options)
+    async_add_entities([sw], False)
+
 class Switch(TdarrEntity, SwitchEntity):
     """Define the Switch for turning ignition off/on"""
 
     def __init__(self, coordinator, switch, options):
         if "nodeName" in switch:
             self._device_id = "tdarr_node_" + switch["nodeName"] + "_paused"
+        elif "_id" in switch and switch["_id"] == "globalsettings":
+            self._device_id = "tdarr_pause_all"
         else:
             self._device_id = "tdarr_node_" + switch["_id"] + "_paused"
         self.switch = switch
@@ -60,8 +65,11 @@ class Switch(TdarrEntity, SwitchEntity):
 
     @property
     def name(self):
+        _LOGGER.debug(self.switch)
         if "nodeName" in self.switch:
             return "tdarr_node_" + self.switch["nodeName"] + "_paused"
+        elif "_id" in self.switch and self.switch["_id"] == "globalsettings":
+            return "tdarr_pause_all"
         else:
             return "tdarr_node_" + self.switch["_id"] + "_paused"
 
@@ -78,6 +86,8 @@ class Switch(TdarrEntity, SwitchEntity):
         elif self._state == False:
             self._state = None
             return False
+        if  self.switch["_id"] == "globalsettings":
+            return self.coordinator.data["globalsettings"]["pauseAllNodes"]
         for key, value in self.coordinator.data["nodes"].items():
             if value["_id"] == self.switch["_id"]:
                 return value["nodePaused"]

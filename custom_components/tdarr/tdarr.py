@@ -41,21 +41,50 @@ class Server(object):
         else:
             return "ERROR"
         
+    def getSettings(self):  
+        post = {
+            "data": {
+                "collection":"SettingsGlobalJSONDB",
+                "mode":"getById",
+                "docID":"globalsettings",
+                "obj":{}
+                },
+            "timeout":1000
+        }
+        r = requests.post(self.baseurl + 'cruddb', json = post)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            return "ERROR"
         
     def pauseNode(self, nodeID, status):
-        
-        data = {
-            "data": {
-                "nodeID": nodeID,
-                "nodeUpdates": {
-                    "nodePaused": status
+
+        if nodeID == "globalsettings":
+            data = {
+                "data":{
+                    "collection":"SettingsGlobalJSONDB",
+                    "mode":"update",
+                    "docID":"globalsettings",
+                    "obj":{
+                        "pauseAllNodes": status
+                        }
+                    },
+                    "timeout":20000
+                }
+            r = requests.post(self.baseurl + 'cruddb', json=data)
+        else:
+            data = {
+                "data": {
+                    "nodeID": nodeID,
+                    "nodeUpdates": {
+                        "nodePaused": status
+                    }
                 }
             }
-        }
-        
-        r = requests.post(self.baseurl + 'update-node', json=data)
+            r = requests.post(self.baseurl + 'update-node', json=data)
+
         if r.status_code == 200:
-            return r.text
+            return "OK"
         else:
             return "ERROR"
 
