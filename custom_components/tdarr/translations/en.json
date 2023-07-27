@@ -26,5 +26,25 @@
                 "description": "Configure Server Options"
             }
         }
+    },
+    "services":{
+        "refresh_library": {
+            "name:": "Library",
+            "description": "Rescan/Refresh Tdarr Library",
+            "fields": {
+                "library": {
+                    "name": "Library",
+                    "description": "Library Name to refresh"
+                },
+                "folderpath": {
+                    "name": "Folder Path",
+                    "description": "Library Folder path e.g. /Movies (Have to include this for now)"
+                },
+                "mode": {
+                    "name": "Scan Mode",
+                    "description": "Mode to scan (default find new files only)"
+                }
+            }
+        }
     }
 }
