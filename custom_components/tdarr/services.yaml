@@ -1,4 +1,5 @@
 refresh_library:
+  name: "Library"
   description: "Rescan/Refresh Tdarr Library"
   fields:
     library:

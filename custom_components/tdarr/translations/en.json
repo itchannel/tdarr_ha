@@ -29,7 +29,7 @@
     },
     "services":{
         "refresh_library": {
-            "name:": "Library",
+            "name": "Library",
             "description": "Rescan/Refresh Tdarr Library",
             "fields": {
                 "library": {
