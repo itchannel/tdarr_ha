@@ -1,4 +1,6 @@
 ## **Changelog**
+### Version 1.12
+- Add translations for services.yaml
 ### Version 1.11
 - Fix versioning
 ### Version 1.10
