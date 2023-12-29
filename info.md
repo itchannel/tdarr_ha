@@ -1,4 +1,7 @@
 ## **Changelog**
+### Version 1.13
+- Add Staged files sensor
+- Add Health count sensor
 ### Version 1.12
 - Add translations for services.yaml
 ### Version 1.11

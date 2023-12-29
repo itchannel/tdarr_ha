@@ -56,7 +56,24 @@ class Server(object):
             return r.json()
         else:
             return "ERROR"
-        
+    
+    def getStaged(self):
+        post = {
+            "data": {
+                "filters":[],
+                "start":0,
+                "pageSize":10,
+                "sorts":[],
+                "opts":{}
+                },
+            "timeout":1000
+        }
+        r = requests.post(self.baseurl + 'client/staged', json = post)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            return "ERROR"
+                
     def pauseNode(self, nodeID, status):
 
         if nodeID == "globalsettings":

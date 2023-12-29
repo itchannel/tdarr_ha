@@ -18,6 +18,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_spacesaved"))
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodefilesremaining"))
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodedcount"))
+    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_healthcount"))
+    # Server Stage Count
+    sensors.append(TdarrSensor(entry, entry.data["staged"], config_entry.options, "stats_stagedcount"))
     # Server Library Sensors
     id = 0
     for value in entry.data["stats"]["pies"]:
@@ -80,6 +83,10 @@ class TdarrSensor(
                 return self.coordinator.data["stats"]["table1Count"]
             elif self.type == "stats_transcodedcount":
                 return self.coordinator.data["stats"]["table2Count"]
+            elif self.type == "stats_stagedcount":
+                return self.coordinator.data["staged"]["totalCount"]
+            elif self.type == "stats_healthcount":
+                return self.coordinator.data["stats"]["table4Count"]
             elif self.type == "library":
                 return self.coordinator.data["stats"]["pies"][self.sensor[0]][2]
 
@@ -153,6 +160,10 @@ class TdarrSensor(
         elif self.type == "stats_transcodefilesremaining":
             return "Files"
         elif self.type == "stats_transcodedcount":
+            return "Files"
+        elif self.type == "stats_stagedcount":
+            return "Files"
+        elif self.type == "stats_healthcount":
             return "Files"
         elif self.type == "library":
             return "Total Files"
