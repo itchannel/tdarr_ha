@@ -18,6 +18,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_spacesaved"))
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodefilesremaining"))
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodedcount"))
+    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_healthcount"))
+    # Server Stage Count
+    sensors.append(TdarrSensor(entry, entry.data["staged"], config_entry.options, "stats_stagedcount"))
     # Server Library Sensors
     id = 0
     for value in entry.data["stats"]["pies"]:
@@ -29,7 +32,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     for key, value in entry.data["nodes"].items():
         sensors.append(TdarrSensor(entry, value, config_entry.options, "node"))
         sensors.append(TdarrSensor(entry, value, config_entry.options, "nodefps"))
+    #Calculate total fps
+    sensors.append(TdarrSensor(entry, entry.data["nodes"], config_entry.options, "stats_totalfps"))
     async_add_entities(sensors, True)
+    
 
 
 class TdarrSensor(
@@ -80,8 +86,19 @@ class TdarrSensor(
                 return self.coordinator.data["stats"]["table1Count"]
             elif self.type == "stats_transcodedcount":
                 return self.coordinator.data["stats"]["table2Count"]
+            elif self.type == "stats_stagedcount":
+                return self.coordinator.data["staged"]["totalCount"]
+            elif self.type == "stats_healthcount":
+                return self.coordinator.data["stats"]["table4Count"]
             elif self.type == "library":
                 return self.coordinator.data["stats"]["pies"][self.sensor[0]][2]
+            elif self.type == "stats_totalfps":
+                fps = 0
+                for key1, value1 in self.coordinator.data["nodes"].items():
+                    for key2, value2 in value1["workers"].items():
+                        fps += value2["fps"]
+                return fps
+            return None
 
         if ftype == "attributes":
             if self.type == "server":
@@ -154,6 +171,12 @@ class TdarrSensor(
             return "Files"
         elif self.type == "stats_transcodedcount":
             return "Files"
+        elif self.type == "stats_stagedcount":
+            return "Files"
+        elif self.type == "stats_healthcount":
+            return "Files"
+        elif self.type == "stats_totalfps":
+            return "FPS"
         elif self.type == "library":
             return "Total Files"
         else:

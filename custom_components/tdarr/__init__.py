@@ -155,6 +155,10 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
                     self.tdarr.getStats
                 )   
                 
+                data["staged"] = await self._hass.async_add_executor_job(
+                    self.tdarr.getStaged
+                )  
+                
                 data["globalsettings"] = await self._hass.async_add_executor_job(
                     self.tdarr.getSettings
                 )
