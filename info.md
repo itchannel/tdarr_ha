@@ -1,5 +1,6 @@
 ## **Changelog**
 ### Version 1.13
+- Added Total FPS sensor
 - Add Staged files sensor
 - Add Health count sensor
 ### Version 1.12
