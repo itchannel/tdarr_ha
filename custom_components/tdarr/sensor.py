@@ -13,6 +13,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entry = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
     sensors = []
     # Server Status Sensor
+    #_LOGGER.debug(entry.data)
     sensors.append(TdarrSensor(entry, entry.data["server"], config_entry.options, "server"))
     # Server Stats Sensors
     sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_spacesaved"))
@@ -25,17 +26,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     id = 0
     for value in entry.data["stats"]["pies"]:
         value.insert(0, id)
-        _LOGGER.debug(value)
+        #_LOGGER.debug(value)
         sensors.append(TdarrSensor(entry, value, config_entry.options, "library"))
         id += 1
     # Server Node Sensors
+    fps_count = 0
     for key, value in entry.data["nodes"].items():
         sensors.append(TdarrSensor(entry, value, config_entry.options, "node"))
         sensors.append(TdarrSensor(entry, value, config_entry.options, "nodefps"))
+    
     #Calculate total fps
     sensors.append(TdarrSensor(entry, entry.data["nodes"], config_entry.options, "stats_totalfps"))
     async_add_entities(sensors, True)
-    
 
 
 class TdarrSensor(
@@ -53,14 +55,14 @@ class TdarrSensor(
             self._device_id = "tdarr_server"
         elif self.type == "node":
             if "nodeName" in self.sensor:
-                self._device_id = "tdarr_node_" + self.sensor["nodeName"]
+                self._device_id = "tdarr_node_" + self.sensor.get("nodeName", "")
             else:
-                self._device_id = "tdarr_node_" + self.sensor["_id"]
+                self._device_id = "tdarr_node_" + self.sensor.get("_id", "")
         elif self.type == "nodefps":
             if "nodeName" in self.sensor:
-                self._device_id = "tdarr_node_" + self.sensor["nodeName"] + "_fps"
+                self._device_id = "tdarr_node_" + self.sensor.get("nodeName","") + "_fps"
             else:
-                self._device_id = "tdarr_node_" + self.sensor["_id"] + "_fps"
+                self._device_id = "tdarr_node_" + self.sensor.get("_id", "") + "_fps"
         elif self.type == "library":
             self._device_id = "tdarr_library_" + self.sensor[1]
         else:
@@ -72,43 +74,42 @@ class TdarrSensor(
     def get_value(self, ftype):
         if ftype == "state":
             if self.type == "server":
-                return self.coordinator.data["server"]["status"]
+                return self.coordinator.data.get("server", {}).get("status")
             elif self.type == "node":
                 return "Online"
             elif self.type == "nodefps":
                 fps = 0
-                for key1, value in self.coordinator.data["nodes"][self.sensor["_id"]]["workers"].items():
-                    fps += value["fps"]
+                for key1, value in self.coordinator.data.get("nodes", {}).get(self.sensor["_id"], {}).get("workers", {}).items():
+                    fps += value.get("fps", 0)
                 return fps
             elif self.type == "stats_spacesaved":
-                return round(self.coordinator.data["stats"]["sizeDiff"], 2)
+                return round(self.coordinator.data.get("stats",{}).get("sizeDiff", 0), 2)
             elif self.type == "stats_transcodefilesremaining":
-                return self.coordinator.data["stats"]["table1Count"]
+                return self.coordinator.data.get("stats",{}).get("table1Count", 0)
             elif self.type == "stats_transcodedcount":
-                return self.coordinator.data["stats"]["table2Count"]
+                return self.coordinator.data.get("stats",{}).get("table2Count", 0)
             elif self.type == "stats_stagedcount":
-                return self.coordinator.data["staged"]["totalCount"]
+                return self.coordinator.data.get("stats",{}).get("totalCount", 0)
             elif self.type == "stats_healthcount":
-                return self.coordinator.data["stats"]["table4Count"]
+                return self.coordinator.data.get("stats",{}).get("table4Count", 0)
             elif self.type == "library":
-                return self.coordinator.data["stats"]["pies"][self.sensor[0]][2]
+                return self.coordinator.data.get("stats",{}).get("pies",[])[self.sensor[0]][2]
             elif self.type == "stats_totalfps":
                 fps = 0
                 for key1, value1 in self.coordinator.data["nodes"].items():
-                    for key2, value2 in value1["workers"].items():
-                        fps += value2["fps"]
+                    for key2, value2 in value1.get("workers", {}).items():
+                        fps += value2.get("fps", 0)
                 return fps
-            return None
 
         if ftype == "attributes":
             if self.type == "server":
-                return self.coordinator.data["server"]
+                return self.coordinator.data.get("server", {})
             elif self.type == "node":
-                return self.coordinator.data["nodes"][self.sensor["_id"]]
+                return self.coordinator.data.get("nodes",{}).get(self.sensor["_id"], {})
             elif self.type == "stats_spacesaved":
-                return self.coordinator.data["stats"]
+                return self.coordinator.data.get("stats", {})
             elif self.type == "library":
-                library = self.coordinator.data["stats"]["pies"][self.sensor[0]]
+                library = self.coordinator.data.get("stats",{}).get("pies", [])[self.sensor[0]]
                 data = {}
                 data["Total Files"] = library[2]
                 data["Number of Transcodes"] = library[3]
@@ -136,14 +137,14 @@ class TdarrSensor(
             return "tdarr_server"
         elif self.type == "node":
             if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.sensor["nodeName"]
+                return "tdarr_node_" + self.sensor.get("nodeName", "Unknown")
             else:
-                return "tdarr_node_" + self.sensor["_id"]
+                return "tdarr_node_" + self.sensor.get("_id", "Unknown")
         elif self.type == "nodefps":
             if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.sensor["nodeName"] + "_fps"
+                return "tdarr_node_" + self.sensor.get("nodeName", "Unknown") + "_fps"
             else:
-                return "tdarr_node_" + self.sensor["_id"] + "_fps"
+                return "tdarr_node_" + self.sensor.get("_id", "Unknown") + "_fps"
         elif self.type == "library":
             return "tdarr_library_" + self.sensor[1]
         else:
@@ -151,7 +152,11 @@ class TdarrSensor(
 
     @property
     def state(self):
-        return self.get_value("state")
+        try:
+            return self.get_value("state")
+        except Exception as e:
+            _LOGGER.error(f"Error getting state for {self.name}: {e}")
+            return None
 
     @property
     def device_id(self):
@@ -175,10 +180,10 @@ class TdarrSensor(
             return "Files"
         elif self.type == "stats_healthcount":
             return "Files"
-        elif self.type == "stats_totalfps":
-            return "FPS"
         elif self.type == "library":
             return "Total Files"
+        elif self.type == "stats_totalfps":
+            return "FPS"
         else:
             return None
 
