@@ -1,4 +1,6 @@
 ## **Changelog**
+### Version 1.15
+- Fix staged count not showing
 ### Version 1.14
 - Added more debugging
 - Added handling for null sensor values

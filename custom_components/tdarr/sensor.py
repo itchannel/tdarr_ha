@@ -89,7 +89,7 @@ class TdarrSensor(
             elif self.type == "stats_transcodedcount":
                 return self.coordinator.data.get("stats",{}).get("table2Count", 0)
             elif self.type == "stats_stagedcount":
-                return self.coordinator.data.get("stats",{}).get("totalCount", 0)
+                return self.coordinator.data.get("staged",{}).get("totalCount", 0)
             elif self.type == "stats_healthcount":
                 return self.coordinator.data.get("stats",{}).get("table4Count", 0)
             elif self.type == "library":
