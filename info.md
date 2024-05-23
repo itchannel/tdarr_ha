@@ -1,4 +1,7 @@
 ## **Changelog**
+### Version 1.14
+- Added more debugging
+- Added handling for null sensor values
 ### Version 1.13
 - Added Total FPS sensor
 - Add Staged files sensor

@@ -175,18 +175,14 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
                     # Reload integration to pick up new/changed nodes
                     current_entries = self._hass.config_entries.async_entries(DOMAIN)
 
-                    reload_tasks = []
+                
                     if len(current_entries) > 0:
                         for entry in current_entries:
-                            _LOGGER.debug(entry.entry_id)
-                            reload_tasks.append(
-                                self._hass.config_entries.async_reload(entry.entry_id)
-                            )
-            
-                        if len(reload_tasks) > 0:
-                            await asyncio.gather(*reload_tasks)
+                            _LOGGER.debug("SHOWING ENTRY")
+                            self._hass.config_entries.async_schedule_reload(entry.entry_id)
 
-     
+
+        
 
                 return data
         except Exception as ex:
@@ -242,8 +238,8 @@ class TdarrEntity(CoordinatorEntity):
         
         sw_version = "Unknown"
 
-        if "version" in self.coordinator.data.get("server", ""):
-            sw_version = self.coordinator.data.get("server", {}).get("version", "Unknown")
+        if "version" in self.coordinator.data["server"]:
+            sw_version = self.coordinator.data["server"]["version"]
 
 
         return {
