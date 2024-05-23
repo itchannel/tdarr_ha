@@ -153,19 +153,20 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
 
                 data["stats"] = await self._hass.async_add_executor_job(
                     self.tdarr.getStats
-                )   
-                
+                )
+
                 data["staged"] = await self._hass.async_add_executor_job(
                     self.tdarr.getStaged
-                )  
-                
+                )   
+
                 data["globalsettings"] = await self._hass.async_add_executor_job(
                     self.tdarr.getSettings
                 )
+                #_LOGGER.debug(self.data)
                 if self.data is not None:
-                    _LOGGER.debug(self.data)
+                    #_LOGGER.debug(self.data)
                     oldnodes = len(self.data["nodes"])
-                    _LOGGER.debug(len(self.data["nodes"]))
+                    #_LOGGER.debug(len(self.data["nodes"]))
                 else:
                     oldnodes = len(data["nodes"])
                 #_LOGGER.debug(len(self.data["nodes"])
@@ -173,14 +174,17 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
                     _LOGGER.debug("Node Change Detected config reload required")
                     # Reload integration to pick up new/changed nodes
                     current_entries = self._hass.config_entries.async_entries(DOMAIN)
-        
 
-                    reload_tasks = [
-                        self._hass.config_entries.async_reload(entry.entry_id)
-                        for entry in current_entries
-                    ]
-
-                    await asyncio.gather(*reload_tasks)
+                    reload_tasks = []
+                    if len(current_entries) > 0:
+                        for entry in current_entries:
+                            _LOGGER.debug(entry.entry_id)
+                            reload_tasks.append(
+                                self._hass.config_entries.async_reload(entry.entry_id)
+                            )
+            
+                        if len(reload_tasks) > 0:
+                            await asyncio.gather(*reload_tasks)
 
      
 
@@ -222,7 +226,7 @@ class TdarrEntity(CoordinatorEntity):
     @property
     def name(self):
         """Return the name of the entity."""
-        _LOGGER.debug(self._name)
+        #_LOGGER.debug(self._name)
         return self._name
 
     @property
@@ -238,8 +242,8 @@ class TdarrEntity(CoordinatorEntity):
         
         sw_version = "Unknown"
 
-        if "version" in self.coordinator.data["server"]:
-            sw_version = self.coordinator.data["server"]["version"]
+        if "version" in self.coordinator.data.get("server", ""):
+            sw_version = self.coordinator.data.get("server", {}).get("version", "Unknown")
 
 
         return {
