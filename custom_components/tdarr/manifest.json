@@ -10,6 +10,6 @@
     "issue_tracker": "https://github.com/itchannel/tdarr_ha/issues",
     "requirements": [],
     "ssdp": [],
-    "version": "1.15",
+    "version": "1.16",
     "zeroconf": []
   }
