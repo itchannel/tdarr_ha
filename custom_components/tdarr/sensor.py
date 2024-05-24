@@ -1,10 +1,14 @@
 import logging
 import re
 
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorDeviceClass,
+    SensorStateClass
+)
 
 from . import TdarrEntity
-from .const import DOMAIN, COORDINATOR
+from .const import DOMAIN, COORDINATOR, SENSORS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,19 +18,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     sensors = []
     # Server Status Sensor
     #_LOGGER.debug(entry.data)
-    sensors.append(TdarrSensor(entry, entry.data["server"], config_entry.options, "server"))
-    # Server Stats Sensors
-    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_spacesaved"))
-    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodefilesremaining"))
-    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_transcodedcount"))
-    sensors.append(TdarrSensor(entry, entry.data["stats"], config_entry.options, "stats_healthcount"))
-    # Server Stage Count
-    sensors.append(TdarrSensor(entry, entry.data["staged"], config_entry.options, "stats_stagedcount"))
+    for key, value in SENSORS.items():
+        if value.get("type", "") == "single":
+            sensors.append(TdarrSensor(entry, entry.data[value["entry"]], config_entry.options, key))
     # Server Library Sensors
     id = 0
     for value in entry.data["stats"]["pies"]:
         value.insert(0, id)
-        #_LOGGER.debug(value)
         sensors.append(TdarrSensor(entry, value, config_entry.options, "library"))
         id += 1
     # Server Node Sensors
@@ -35,19 +33,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         sensors.append(TdarrSensor(entry, value, config_entry.options, "node"))
         sensors.append(TdarrSensor(entry, value, config_entry.options, "nodefps"))
     
-    #Calculate total fps
-    sensors.append(TdarrSensor(entry, entry.data["nodes"], config_entry.options, "stats_totalfps"))
+
     async_add_entities(sensors, True)
 
 
 class TdarrSensor(
     TdarrEntity,
-    Entity,
+    SensorEntity,
 ):
     def __init__(self, coordinator, sensor, options, type):
 
         self.sensor = sensor
-        self.options = options
+        self.tdarroptions = options
         self.type = type
         self._attr = {}
         self.coordinator = coordinator
@@ -92,8 +89,16 @@ class TdarrSensor(
                 return self.coordinator.data.get("staged",{}).get("totalCount", 0)
             elif self.type == "stats_healthcount":
                 return self.coordinator.data.get("stats",{}).get("table4Count", 0)
+            elif self.type == "stats_transcodeerrorcount":
+                return self.coordinator.data.get("stats",{}).get("table3Count", 0)
+            elif self.type == "stats_healtherrorcount":
+                return self.coordinator.data.get("stats",{}).get("table6Count", 0)
             elif self.type == "library":
-                return self.coordinator.data.get("stats",{}).get("pies",[])[self.sensor[0]][2]
+                library = self.coordinator.data.get("stats",{}).get("pies",[])[self.sensor[0]][2]
+                if isinstance(library, int):
+                    return library
+                else:
+                    return self.coordinator.data.get("stats",{}).get("pies",[])[self.sensor[0]][3]
             elif self.type == "stats_totalfps":
                 fps = 0
                 for key1, value1 in self.coordinator.data["nodes"].items():
@@ -150,43 +155,32 @@ class TdarrSensor(
         else:
             return "tdarr_" + self.type
 
-    @property
-    def state(self):
-        try:
-            return self.get_value("state")
-        except Exception as e:
-            _LOGGER.error(f"Error getting state for {self.name}: {e}")
-            return None
 
     @property
     def device_id(self):
         return self.device_id
+    
+    @property 
+    def native_value(self):
+        return self.get_value("state")
+
 
     @property
     def extra_state_attributes(self):
         return self.get_value("attributes")
 
     @property
-    def unit_of_measurement(self):
-        if self.type == "nodefps":
-            return "FPS"
-        elif self.type == "stats_spacesaved":
-            return "GB"
-        elif self.type == "stats_transcodefilesremaining":
-            return "Files"
-        elif self.type == "stats_transcodedcount":
-            return "Files"
-        elif self.type == "stats_stagedcount":
-            return "Files"
-        elif self.type == "stats_healthcount":
-            return "Files"
-        elif self.type == "library":
-            return "Total Files"
-        elif self.type == "stats_totalfps":
-            return "FPS"
-        else:
-            return None
+    def native_unit_of_measurement(self):
+        return SENSORS.get(self.type, {}).get("unit_of_measurement", None)
+
+    @property
+    def device_class(self):
+        return SENSORS.get(self.type, {}).get("device_class", None)
 
     @property
     def icon(self):
+        return SENSORS.get(self.type, {}).get("icon", None)
+    
+    @property
+    def state_class(self):
         return None

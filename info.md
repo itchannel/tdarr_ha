@@ -1,4 +1,9 @@
 ## **Changelog**
+### Version 1.16
+- Added Health and Transcode failed sensors
+- Added icons
+- Added support for long term statistics
+- Refactored some code
 ### Version 1.15
 - Fix staged count not showing
 ### Version 1.14
