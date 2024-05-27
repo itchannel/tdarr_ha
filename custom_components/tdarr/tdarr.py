@@ -41,22 +41,6 @@ class Server(object):
         else:
             return "ERROR"
         
-    def getSettings(self):  
-        post = {
-            "data": {
-                "collection":"SettingsGlobalJSONDB",
-                "mode":"getById",
-                "docID":"globalsettings",
-                "obj":{}
-                },
-            "timeout":1000
-        }
-        r = requests.post(self.baseurl + 'cruddb', json = post)
-        if r.status_code == 200:
-            return r.json()
-        else:
-            return "ERROR"
-    
     def getStaged(self):
         post = {
             "data": {
@@ -73,10 +57,26 @@ class Server(object):
             return r.json()
         else:
             return "ERROR"
-                
+        
+    def getSettings(self):  
+        post = {
+            "data": {
+                "collection":"SettingsGlobalJSONDB",
+                "mode":"getById",
+                "docID":"globalsettings",
+                "obj":{}
+                },
+            "timeout":1000
+        }
+        r = requests.post(self.baseurl + 'cruddb', json = post)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            return "ERROR"
+        
     def pauseNode(self, nodeID, status):
 
-        if nodeID == "globalsettings":
+        if nodeID == "pauseAll":
             data = {
                 "data":{
                     "collection":"SettingsGlobalJSONDB",
@@ -84,6 +84,19 @@ class Server(object):
                     "docID":"globalsettings",
                     "obj":{
                         "pauseAllNodes": status
+                        }
+                    },
+                    "timeout":20000
+                }
+            r = requests.post(self.baseurl + 'cruddb', json=data)
+        elif nodeID == "ignoreSchedules":
+            data = {
+                "data":{
+                    "collection":"SettingsGlobalJSONDB",
+                    "mode":"update",
+                    "docID":"globalsettings",
+                    "obj":{
+                        "ignoreSchedules": status
                         }
                     },
                     "timeout":20000
@@ -99,7 +112,6 @@ class Server(object):
                 }
             }
             r = requests.post(self.baseurl + 'update-node', json=data)
-
         if r.status_code == 200:
             return "OK"
         else:
