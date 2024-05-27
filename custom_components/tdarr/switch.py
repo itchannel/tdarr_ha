@@ -4,41 +4,48 @@ import time
 from homeassistant.components.switch import SwitchEntity
 
 from . import TdarrEntity
-from .const import DOMAIN, COORDINATOR
+from .const import DOMAIN, COORDINATOR, SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Switch from the config."""
     entry = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
-    
+    switches = []
     for key, value in entry.data["nodes"].items():
-        sw = Switch(entry, value, config_entry.options)
-        async_add_entities([sw], False)
+        sw = Switch(entry, value, value["_id"], config_entry.options)
+        switches.append(sw)
 
-    sw = Switch(entry, entry.data["globalsettings"], config_entry.options)
-    async_add_entities([sw], False)
+    for key, value in SWITCHES.items():
+        _LOGGER.debug(value)
+        switches.append(Switch(entry, entry.data["globalsettings"], value["name"], config_entry.options))
+
+    async_add_entities(switches, False)
 
 class Switch(TdarrEntity, SwitchEntity):
     """Define the Switch for turning ignition off/on"""
 
-    def __init__(self, coordinator, switch, options):
+    def __init__(self, coordinator, switch, name, options):
+        _LOGGER.debug(name)
         if "nodeName" in switch:
             self._device_id = "tdarr_node_" + switch["nodeName"] + "_paused"
-        elif "_id" in switch and switch["_id"] == "globalsettings":
+        elif name == "pauseAll":
             self._device_id = "tdarr_pause_all"
+        elif name == "ignoreSchedules":
+            self._device_id = "tdarr_ignore_schedules"
         else:
             self._device_id = "tdarr_node_" + switch["_id"] + "_paused"
         self.switch = switch
         self.coordinator = coordinator
         self._state = None
+        self.object_name = name
         # Required for HA 2022.7
         self.coordinator_context = object()
 
     async def async_turn_on(self, **kwargs):
         update = await self.coordinator.hass.async_add_executor_job(
             self.coordinator.tdarr.pauseNode,
-            self.switch["_id"],
+            self.object_name,
             True
         )
 
@@ -53,7 +60,7 @@ class Switch(TdarrEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs):
         update = await self.coordinator.hass.async_add_executor_job(
             self.coordinator.tdarr.pauseNode,
-            self.switch["_id"],
+            self.object_name,
             False
         )
 
@@ -65,11 +72,13 @@ class Switch(TdarrEntity, SwitchEntity):
 
     @property
     def name(self):
-        _LOGGER.debug(self.switch)
+        #_LOGGER.debug(self.switch)
         if "nodeName" in self.switch:
             return "tdarr_node_" + self.switch["nodeName"] + "_paused"
-        elif "_id" in self.switch and self.switch["_id"] == "globalsettings":
+        elif self.object_name == "pauseAll":
             return "tdarr_pause_all"
+        elif self.object_name == "ignoreSchedules": 
+            return "tdarr_ignore_schedules"
         else:
             return "tdarr_node_" + self.switch["_id"] + "_paused"
 
@@ -86,8 +95,10 @@ class Switch(TdarrEntity, SwitchEntity):
         elif self._state == False:
             self._state = None
             return False
-        if  self.switch["_id"] == "globalsettings":
+        if  self.object_name == "pauseAll":
             return self.coordinator.data["globalsettings"]["pauseAllNodes"]
+        elif self.object_name == "ignoreSchedules":
+            return self.coordinator.data["globalsettings"]["ignoreSchedules"]
         for key, value in self.coordinator.data["nodes"].items():
             if value["_id"] == self.switch["_id"]:
                 return value["nodePaused"]
@@ -96,7 +107,7 @@ class Switch(TdarrEntity, SwitchEntity):
 
     @property
     def icon(self):
-        return None
+        return SWITCHES.get(self.object_name, {}).get("icon", None)
 
     @property
     def extra_state_attributes(self):

@@ -20,3 +20,8 @@ SENSORS = {
     "stats_totalfps": {"icon": "mdi:video", "unit_of_measurement": "FPS", "type": "single", "entry": "nodes"},
     "library": {"icon": "mdi:folder-multiple", "unit_of_measurement": "Files"},
 }
+
+SWITCHES = {
+    "pauseAll": {"icon": "mdi:pause-circle", "name": "pauseAll", "data": "globalsettings"},
+    "ignoreSchedules": {"icon": "mdi:calendar-remove", "name": "ignoreSchedules", "data": "globalsettings"},
+}

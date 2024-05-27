@@ -1,4 +1,7 @@
 ## **Changelog**
+### Version 1.17
+- Added disable schedules toggle
+- Add icons for certain switches
 ### Version 1.16
 - Added Health and Transcode failed sensors
 - Added icons
