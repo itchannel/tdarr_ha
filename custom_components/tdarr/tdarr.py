@@ -24,6 +24,19 @@ class Server(object):
             return result
         else:
             return "ERROR"
+    
+    def getLibraries(self):
+        libraries = []
+        library = self.getPies()
+        library["name"] = "All"
+        libraries.append(library)
+        for lib in self.getLibraryStats():
+            library2 = self.getPies(lib["_id"])
+            library2["name"] = lib["name"]
+            libraries.append(library2)
+
+
+        return libraries
 
     def getStats(self):
         post = {
@@ -38,6 +51,31 @@ class Server(object):
         r = requests.post(self.baseurl + 'cruddb', json = post)
         if r.status_code == 200:
             return r.json()
+        else:
+            return "ERROR"
+    
+    def getLibraryStats(self):
+        post = {
+            "data": {
+                "collection":"LibrarySettingsJSONDB",
+                "mode":"getAll",
+                },
+            "timeout":20000
+        }
+        r = requests.post(self.baseurl + 'cruddb', json = post)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            return
+    def getPies(self, libraryID=""):
+        post = {
+            "data": {
+                "libraryId":libraryID
+                },
+        }
+        r = requests.post(self.baseurl + 'stats/get-pies', json = post)
+        if r.status_code == 200:
+            return r.json()["pieStats"]
         else:
             return "ERROR"
         
@@ -118,16 +156,15 @@ class Server(object):
             return "ERROR"
 
     def refreshLibrary(self, libraryname, mode, folderpath):
-        stats = self.getStats()
+        stats = self.getLibraryStats()
         libid = None
         _LOGGER.debug(mode)
 
         if mode == "":
             mode = "scanFindNew"
-        for lib in stats["pies"]:
-            if libraryname in lib:
-                libid = lib[1]
-                _LOGGER.debug(lib[1])
+        for lib in stats:
+            if libraryname in lib["name"]:
+                libid = lib["_id"]
 
         if libid is None:
             return {"ERROR": "Library Name not found"}

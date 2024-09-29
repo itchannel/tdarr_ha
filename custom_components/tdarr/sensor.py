@@ -23,8 +23,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             sensors.append(TdarrSensor(entry, entry.data[value["entry"]], config_entry.options, key))
     # Server Library Sensors
     id = 0
-    for value in entry.data["stats"]["pies"]:
-        value.insert(0, id)
+    for value in entry.data["libraries"]:
+        #value.insert(0, id)
         sensors.append(TdarrSensor(entry, value, config_entry.options, "library"))
         id += 1
     # Server Node Sensors
@@ -61,7 +61,7 @@ class TdarrSensor(
             else:
                 self._device_id = "tdarr_node_" + self.sensor.get("_id", "") + "_fps"
         elif self.type == "library":
-            self._device_id = "tdarr_library_" + self.sensor[1]
+            self._device_id = "tdarr_library_" + self.sensor["name"]
         else:
             self._device_id = "tdarr_" + self.type
         # Required for HA 2022.7
@@ -94,11 +94,12 @@ class TdarrSensor(
             elif self.type == "stats_healtherrorcount":
                 return self.coordinator.data.get("stats",{}).get("table6Count", 0)
             elif self.type == "library":
-                library = self.coordinator.data.get("stats",{}).get("pies",[])[self.sensor[0]][2]
-                if isinstance(library, int):
-                    return library
-                else:
-                    return self.coordinator.data.get("stats",{}).get("pies",[])[self.sensor[0]][3]
+                libraries = self.coordinator.data.get("libraries",{})
+                for library in libraries:
+                    if library["name"] == self.sensor["name"]:
+                        _LOGGER.debug(library)
+                        return library["totalFiles"]
+
             elif self.type == "stats_totalfps":
                 fps = 0
                 for key1, value1 in self.coordinator.data["nodes"].items():
@@ -114,25 +115,27 @@ class TdarrSensor(
             elif self.type == "stats_spacesaved":
                 return self.coordinator.data.get("stats", {})
             elif self.type == "library":
-                library = self.coordinator.data.get("stats",{}).get("pies", [])[self.sensor[0]]
-                data = {}
-                data["Total Files"] = library[2]
-                data["Number of Transcodes"] = library[3]
-                data["Space Saved (GB)"] = round(library[4], 0)
-                data["Number of Health Checks"] = library[5]
-                codecs = {}
-                for codec in library[8]:
-                    codecs[codec["name"]] = codec["value"]
-                data["Codecs"] = codecs
-                containers = {}
-                for container in library[9]:
-                    containers[container["name"]] = container["value"]
-                data["Containers"] = containers
-                qualities = {}
-                for quality in library[10]:
-                    qualities[quality["name"]] = quality["value"]
-                data["Resolutions"] = qualities
-                return data
+                libraries = self.coordinator.data.get("libraries",{})
+                for library in libraries:
+                    if library["name"] == self.sensor["name"]:
+                        data = {}
+                        data["Total Files"] = library["totalFiles"]
+                        data["Number of Transcodes"] = library["totalTranscodeCount"]
+                        data["Space Saved (GB)"] = round(library["sizeDiff"], 0)
+                        data["Number of Health Checks"] = library["totalHealthCheckCount"]
+                        codecs = {}
+                        for codec in library.get("video", {}).get("codecs", {}):
+                            codecs[codec["name"]] = codec["value"]
+                        data["Codecs"] = codecs
+                        containers = {}
+                        for container in library.get("video", {}).get("containers", {}):
+                            containers[container["name"]] = container["value"]
+                        data["Containers"] = containers
+                        qualities = {}
+                        for quality in library.get("video", {}).get("resolutions", {}):
+                            qualities[quality["name"]] = quality["value"]
+                        data["Resolutions"] = qualities
+                        return data
             else:
                 return None
 
@@ -151,7 +154,7 @@ class TdarrSensor(
             else:
                 return "tdarr_node_" + self.sensor.get("_id", "Unknown") + "_fps"
         elif self.type == "library":
-            return "tdarr_library_" + self.sensor[1]
+            return "tdarr_library_" + self.sensor["name"]
         else:
             return "tdarr_" + self.type
 

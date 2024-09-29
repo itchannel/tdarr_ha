@@ -48,8 +48,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     else:
         update_interval = UPDATE_INTERVAL_DEFAULT
 
-    for ar in entry.data:
-        _LOGGER.debug(ar)
+    #for ar in entry.data:
+        #_LOGGER.debug(ar)
 
     coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval)
 
@@ -69,10 +69,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     }
         
 
-    for component in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, component)
-        )
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def async_refresh_library_service(service_call):
         await hass.async_add_executor_job(
@@ -98,7 +96,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
             ]
         )
     )
-    _LOGGER.debug(hass.data[DOMAIN][entry.entry_id])
+    #_LOGGER.debug(hass.data[DOMAIN][entry.entry_id])
     hass.data[DOMAIN][entry.entry_id]["tdarr_options_listener"]()
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
@@ -157,7 +155,11 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
 
                 data["staged"] = await self._hass.async_add_executor_job(
                     self.tdarr.getStaged
-                )   
+                )
+
+                data["libraries"] = await self._hass.async_add_executor_job(
+                    self.tdarr.getLibraries
+                )
 
                 data["globalsettings"] = await self._hass.async_add_executor_job(
                     self.tdarr.getSettings
