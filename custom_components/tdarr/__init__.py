@@ -21,7 +21,8 @@ from .const import (
     SERVERPORT,
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_DEFAULT,
-    COORDINATOR
+    COORDINATOR,
+    APIKEY
 )
 
 from .tdarr import Server
@@ -42,6 +43,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Tdarr Server from a config entry."""
     serverip = entry.data[SERVERIP]
     serverport= entry.data[SERVERPORT]
+    if APIKEY in entry.data:
+        apikey = entry.data[APIKEY]
+    else:
+        apikey = ""
 
     if UPDATE_INTERVAL in entry.options:
         update_interval = entry.options[UPDATE_INTERVAL]
@@ -51,12 +56,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     #for ar in entry.data:
         #_LOGGER.debug(ar)
 
-    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval)
+    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval, apikey)
 
     await coordinator.async_refresh()  # Get initial data
        # Registers update listener to update config entry when options are updated.
     #_LOGGER.debug(coordinator.data)
-    tdarr_options_listener = entry.add_update_listener(options_update_listener)
+    tdarr_options_listener = entry.add_update_listener(options_update_listener) 
 
    
 
@@ -121,12 +126,12 @@ async def options_update_listener(
 class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator to handle fetching new data about the Tdarr Controller."""
 
-    def __init__(self, hass, serverip, serverport, update_interval):
+    def __init__(self, hass, serverip, serverport, update_interval, apikey):
         """Initialize the coordinator and set up the Controller object."""
         self._hass = hass
         self.serverip = serverip
         self.serverport = serverport
-        self.tdarr = Server(serverip, serverport)
+        self.tdarr = Server(serverip, serverport, apikey)
         self._available = True
 
         super().__init__(

@@ -11,7 +11,8 @@ from .const import (
     SERVERIP,
     SERVERPORT,
     UPDATE_INTERVAL,
-    UPDATE_INTERVAL_DEFAULT
+    UPDATE_INTERVAL_DEFAULT,
+    APIKEY
 )
 from .tdarr import Server
 
@@ -21,6 +22,7 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(SERVERIP): str,
         vol.Required(SERVERPORT, default="8265"): str,
+        vol.Optional(APIKEY, default=""): str
     }
 )
 
@@ -30,10 +32,15 @@ async def validate_input(hass: core.HomeAssistant, data):
     Data has the keys from DATA_SCHEMA with values provided by the user.
     """
     
-    tdarr = Server(data[SERVERIP], data[SERVERPORT])
+    tdarr = Server(data[SERVERIP], data[SERVERPORT], data[APIKEY])
 
-
-    result = await hass.async_add_executor_job(tdarr.getStatus)#
+    result = await hass.async_add_executor_job(tdarr.getSettings)
+    if result.get("status", "") == "ERROR":
+        if "Invalid API key" in result["message"]:
+            raise InvalidAPIKEY
+        if "No auth token provided" in result["message"]:
+            raise AuthRequired
+        raise ConnectionError
     if not result:
         _LOGGER.error("Failed to connect to Tdarr Server")
         raise ConnectionError
@@ -56,6 +63,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(title=info["title"], data=user_input)
             except ConnectionError:
                 errors["base"] = "cannot_connect"
+            except InvalidAPIKEY:
+                errors["base"] = "invalid_apikey"
+            except AuthRequired:
+                errors["base"] = "auth_required"
             except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.exception(ex)
                 errors["base"] = "unknown"
@@ -77,7 +88,17 @@ class OptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            if SERVERIP in self.config_entry.data:
+                user_input[SERVERIP] = self.config_entry.data[SERVERIP]
+            if SERVERPORT in self.config_entry.data:
+                user_input[SERVERPORT] = self.config_entry.data[SERVERPORT]
+            if APIKEY in user_input:
+                user_input[APIKEY] = user_input[APIKEY].strip()
+            _LOGGER.debug(user_input)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=user_input, options=self.config_entry.options
+            )
+            return self.async_create_entry(title="", data={})
         options = {
             vol.Optional(
                 UPDATE_INTERVAL,
@@ -85,10 +106,19 @@ class OptionsFlow(config_entries.OptionsFlow):
                     UPDATE_INTERVAL, UPDATE_INTERVAL_DEFAULT
                 ),
             ): int,
+            vol.Optional(
+                APIKEY,
+                default=self.config_entry.data.get(APIKEY, "")
+            ): str,
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(options))
 
+class InvalidAPIKEY(exceptions.HomeAssistantError):
+    """Error to indicate the wrong API key was entered"""
+
+class AuthRequired(exceptions.HomeAssistantError):
+    """Error to indicate Auth is required"""
 
 
 

@@ -6,22 +6,27 @@
         "error": {
             "cannot_connect": "Failed to connect to Tdarr Server",
             "invalid_auth": "Invalid authentication",
+            "invalid_apikey": "Invalid API Key",
+            "auth_required": "Tdarr server requires API Key as authentication is enabled!",
             "unknown": "Unexpected error (Enable debug for more info)"
         },
         "step": {
             "user": {
                 "data": {
                     "serverip": "Tdarr Server IP",
-                    "serverport": "Tdarr Server Port"
+                    "serverport": "Tdarr Server Port",
+                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
                 }
             }
         }
     },
+
         "options": {
         "step": {
             "init": {
                 "data": {
-                    "update_interval": "Interval to poll Server (Seconds)"
+                    "update_interval": "Interval to poll Server (Seconds)",
+                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
                 },
                 "description": "Configure Server Options"
             }

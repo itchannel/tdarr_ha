@@ -5,6 +5,7 @@ SERVERPORT = "serverport"
 UPDATE_INTERVAL = "update_interval"
 UPDATE_INTERVAL_DEFAULT = 60
 COORDINATOR = "coordinator"
+APIKEY = "apikey"
 
 SENSORS = {
     "server": {"icon": "mdi:server", "type": "single", "entry": "server"},
