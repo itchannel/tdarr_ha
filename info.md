@@ -1,4 +1,9 @@
 ## **Changelog**
+### Version 1.18
+- Fixed Library stats not showing
+- Fixed Library refresh service
+- Fixed HA warning message
+- Added APIKey/Auth support
 ### Version 1.17
 - Added disable schedules toggle
 - Add icons for certain switches

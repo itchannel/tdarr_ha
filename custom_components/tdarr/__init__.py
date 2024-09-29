@@ -21,7 +21,8 @@ from .const import (
     SERVERPORT,
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_DEFAULT,
-    COORDINATOR
+    COORDINATOR,
+    APIKEY
 )
 
 from .tdarr import Server
@@ -42,21 +43,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Tdarr Server from a config entry."""
     serverip = entry.data[SERVERIP]
     serverport= entry.data[SERVERPORT]
+    if APIKEY in entry.data:
+        apikey = entry.data[APIKEY]
+    else:
+        apikey = ""
 
     if UPDATE_INTERVAL in entry.options:
         update_interval = entry.options[UPDATE_INTERVAL]
     else:
         update_interval = UPDATE_INTERVAL_DEFAULT
 
-    for ar in entry.data:
-        _LOGGER.debug(ar)
+    #for ar in entry.data:
+        #_LOGGER.debug(ar)
 
-    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval)
+    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval, apikey)
 
     await coordinator.async_refresh()  # Get initial data
        # Registers update listener to update config entry when options are updated.
     #_LOGGER.debug(coordinator.data)
-    tdarr_options_listener = entry.add_update_listener(options_update_listener)
+    tdarr_options_listener = entry.add_update_listener(options_update_listener) 
 
    
 
@@ -69,10 +74,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     }
         
 
-    for component in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, component)
-        )
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def async_refresh_library_service(service_call):
         await hass.async_add_executor_job(
@@ -98,7 +101,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
             ]
         )
     )
-    _LOGGER.debug(hass.data[DOMAIN][entry.entry_id])
+    #_LOGGER.debug(hass.data[DOMAIN][entry.entry_id])
     hass.data[DOMAIN][entry.entry_id]["tdarr_options_listener"]()
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
@@ -123,12 +126,12 @@ async def options_update_listener(
 class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator to handle fetching new data about the Tdarr Controller."""
 
-    def __init__(self, hass, serverip, serverport, update_interval):
+    def __init__(self, hass, serverip, serverport, update_interval, apikey):
         """Initialize the coordinator and set up the Controller object."""
         self._hass = hass
         self.serverip = serverip
         self.serverport = serverport
-        self.tdarr = Server(serverip, serverport)
+        self.tdarr = Server(serverip, serverport, apikey)
         self._available = True
 
         super().__init__(
@@ -157,7 +160,11 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
 
                 data["staged"] = await self._hass.async_add_executor_job(
                     self.tdarr.getStaged
-                )   
+                )
+
+                data["libraries"] = await self._hass.async_add_executor_job(
+                    self.tdarr.getLibraries
+                )
 
                 data["globalsettings"] = await self._hass.async_add_executor_job(
                     self.tdarr.getSettings

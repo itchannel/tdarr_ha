@@ -1,30 +1,33 @@
 {
-  "config": {
-      "abort": {
-          "already_configured": "Account is already configured"
-      },
-      "error": {
-          "cannot_connect": "Failed to connect to Tdarr Server",
-          "invalid_auth": "Invalid authentication",
-          "unknown": "Unexpected error (Enable debug for more info)"
-      },
-      "step": {
-          "user": {
-              "data": {
-                  "serverip": "Tdarr Server IP",
-                  "serverport": "Tdarr Server Port"
-              }
-          }
-      }
-  },
-      "options": {
-      "step": {
-          "init": {
-              "data": {
-                  "update_interval": "Interval to poll Server (Seconds)"
-              },
-              "description": "Configure Server Options"
-          }
-      }
+    "config": {
+        "abort": {
+            "already_configured": "Account is already configured"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to Tdarr Server",
+            "invalid_apikey": "Invalid API Key",
+            "invalid_auth": "Invalid authentication",
+            "auth_required": "Tdarr server requires API Key as authentication is enabled!",
+            "unknown": "Unexpected error (Enable to debug for more info)"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "serverip": "Tdarr Server IP",
+                    "serverport": "Tdarr Server Port",
+                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank"
+                }
+            }
+        }
+    },
+        "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "update_interval": "Interval to poll Server (Seconds)"
+                },
+                "description": "Configure Server Options"
+            }
+        }
+    }
   }
-}
