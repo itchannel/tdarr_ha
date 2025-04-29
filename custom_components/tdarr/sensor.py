@@ -61,7 +61,7 @@ class TdarrSensor(
             else:
                 self._device_id = "tdarr_node_" + self.sensor.get("_id", "") + "_fps"
         elif self.type == "library":
-            self._device_id = "tdarr_library_" + self.sensor["name"]
+            self._device_id = "tdarr_library_" + self.sensor.get("name", "")
         else:
             self._device_id = "tdarr_" + self.type
         # Required for HA 2022.7
@@ -111,7 +111,8 @@ class TdarrSensor(
             if self.type == "server":
                 return self.coordinator.data.get("server", {})
             elif self.type == "node":
-                return self.coordinator.data.get("nodes",{}).get(self.sensor["_id"], {})
+                data = self.coordinator.data.get("nodes",{}).get(self.sensor["_id"], {})
+                return data
             elif self.type == "stats_spacesaved":
                 return self.coordinator.data.get("stats", {})
             elif self.type == "library":
@@ -154,7 +155,7 @@ class TdarrSensor(
             else:
                 return "tdarr_node_" + self.sensor.get("_id", "Unknown") + "_fps"
         elif self.type == "library":
-            return "tdarr_library_" + self.sensor["name"]
+            return "tdarr_library_" + self.sensor.get("name", "Unknown")
         else:
             return "tdarr_" + self.type
 
