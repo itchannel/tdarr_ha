@@ -1,6 +1,8 @@
 ## **Changelog**
 ### Version 1.19
 - Fix for deprecated config flow
+- Refactor tdarr.py
+- Fix options flow to update interval
 ### Version 1.18
 - Fixed Library stats not showing
 - Fixed Library refresh service
