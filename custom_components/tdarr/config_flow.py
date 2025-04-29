@@ -2,7 +2,8 @@
 import logging
 
 import voluptuous as vol
-from homeassistant import config_entries, core, exceptions
+from homeassistant import core, exceptions
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from requests.exceptions import ConnectionError
 
@@ -48,11 +49,11 @@ async def validate_input(hass: core.HomeAssistant, data):
     # Return info that you want to store in the config entry.
     return {"title": f"Tdarr Server ({data[SERVERIP]})"}
 
-class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Tdarr Controller."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
+
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -77,14 +78,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: ConfigEntry):
         """Get the options flow for this handler."""
-        return OptionsFlow(config_entry)
+        return OptionsFlow()
 
-class OptionsFlow(config_entries.OptionsFlow):
-    def __init__(self, config_entry: config_entries.ConfigEntry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
+class OptionsFlow(OptionsFlow):
+    
+    @property 
+    def config_entry(self):
+        return self.hass.config_entries.async_get_entry(self.handler)
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
@@ -95,10 +97,7 @@ class OptionsFlow(config_entries.OptionsFlow):
             if APIKEY in user_input:
                 user_input[APIKEY] = user_input[APIKEY].strip()
             _LOGGER.debug(user_input)
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=user_input, options=self.config_entry.options
-            )
-            return self.async_create_entry(title="", data={})
+            return self.async_create_entry(title="", data=user_input)
         options = {
             vol.Optional(
                 UPDATE_INTERVAL,

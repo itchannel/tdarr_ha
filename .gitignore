@@ -3,6 +3,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*:zone.identifier
 
 # MacOS drops these files all over the place to store finder view preferences. They can be safelu deleted.
 .DS_Store
