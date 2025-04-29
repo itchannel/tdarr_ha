@@ -3,6 +3,7 @@
 - Fix for deprecated config flow
 - Refactor tdarr.py
 - Fix options flow to update interval
+- Added service to cancel all transcodes on given node
 ### Version 1.18
 - Fixed Library stats not showing
 - Fixed Library refresh service

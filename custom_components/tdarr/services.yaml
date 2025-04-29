@@ -1,5 +1,4 @@
 refresh_library:
-  name: "Library"
   description: "Rescan/Refresh Tdarr Library"
   fields:
     library:
@@ -24,4 +23,22 @@ refresh_library:
           options:
             - scanFindNew
             - scanFresh
-
+cancel_workers_by_node_name:
+  name: Cancel Workers by Node Name
+  description: Cancel all workers on a node identified by its name
+  fields:
+    node_name:
+      name: Node Name
+      description: Name of the node where workers should be cancelled
+      required: true
+      example: "Media Server"
+      selector:
+        text:
+    cause:
+      name: Cause
+      description: Reason for cancellation
+      required: false
+      default: "user"
+      example: "system maintenance"
+      selector:
+        text:

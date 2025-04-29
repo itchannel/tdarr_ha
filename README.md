@@ -21,6 +21,15 @@ Use HACS and add as a custom repo. Once the integration is installed go to your 
 
 ![Library Sensor](https://github.com/itchannel/screenshots/raw/main/tdarr_library_sensor.jpg)
 
+## Services
+Service to cancel all transcodes on the given node
+```
+action: tdarr.cancel_workers_by_node_name
+data:
+  node_name: Media Server
+  cause: system maintenance
+  ```
+
 ## Additional Information
 
 The integration will automatically add new nodes as they come online. Old nodes that are no longer used will need to be manually deleted from HA if no longer used.

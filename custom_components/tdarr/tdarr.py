@@ -9,7 +9,7 @@ from typing import Dict, List, Union, Any, Optional
 _LOGGER = logging.getLogger(__name__)
 
 class Server:
-    """Class representing a tdarr server"""
+    """Class representing a tdarr server with optimized performance."""
     
     def __init__(self, url: str, port: str, apikey: str = "", timeout: int = 10):
         """Initialize the server connection with improved defaults."""
@@ -404,6 +404,114 @@ class Server:
             return {"success": True}
         else:
             return {"error": str(result)}
+
+    def cancelWorker(self, nodeID, workerID, cause="user"):
+        """
+        Cancel a specific worker on a node.
+        """
+        data = {
+            "data": {
+                "nodeID": nodeID,
+                "workerID": workerID,
+                "cause": cause
+            }
+        }
+        
+        r = requests.post(self.baseurl + 'cancel-worker-item', json=data, headers=self.headers)
+        
+        if r.status_code == 200:
+            return {"success": True, "message": f"Worker {workerID} on node {nodeID} cancelled successfully"}
+        else:
+            _LOGGER.error(f"Failed to cancel worker {workerID} on node {nodeID}: {r.text}")
+            return {"error": True, "details": r.text}
+
+    
+    def cancelAllWorkersByNodeName(self, nodeName, cause="user"):
+        """
+        Cancel all workers running on a node identified by its name.
+        """
+        # First, get current node information to find all active workers
+        nodes_response = self.getNodes()
+
+        if nodes_response == "ERROR":
+            return {"error": True, "message": "Failed to get node information"}
+
+        # Find the node(s) by name
+        target_nodes = []
+        node_name_lower = nodeName.lower()
+
+        # Let's debug what we're getting from getNodes
+        _LOGGER.debug(f"Nodes response type: {type(nodes_response)}")
+        #_LOGGER.debug(nodes_response)
+
+        # Process based on the structure we have
+        if isinstance(nodes_response, dict):
+            # Process node list
+            for key, node in nodes_response.items():
+                if isinstance(node, dict):
+                    node_name = node.get("nodeName", "")
+                    if isinstance(node_name, str) and node_name.lower() == node_name_lower:
+                        target_nodes.append(node)
+
+        if not target_nodes:
+            return {"error": True, "message": f"No nodes found with name '{nodeName}'"}
+
+        # Multiple nodes might have the same name, handle all of them
+        total_success_count = 0
+        total_worker_count = 0
+        failed_cancellations = []
+
+        for node in target_nodes:
+            node_id = node.get("_id")
+            node_name = node.get("nodeName", "Unknown")
+            
+            # Extract worker IDs for this node
+            workers = node.get("workers", [])
+            worker_ids = []
+            for key, worker in workers.items():
+                _LOGGER.debug(worker)
+                _LOGGER.debug(type(worker))
+                if isinstance(worker, dict) and worker.get("_id"):
+                    worker_ids.append(worker.get("_id"))
+            
+            total_worker_count += len(worker_ids)
+            
+            # Cancel each worker on this node
+            for worker_id in worker_ids:
+                result = self.cancelWorker(node_id, worker_id, cause)
+                if isinstance(result, dict) and result.get("success"):
+                    total_success_count += 1
+                else:
+                    failed_cancellations.append({
+                        "node_name": node_name,
+                        "node_id": node_id,
+                        "worker_id": worker_id
+                    })
+
+        # Return summary
+        if not total_worker_count:
+            return {
+                "success": True, 
+                "message": f"No active workers found on nodes named '{nodeName}'",
+                "affected_nodes": len(target_nodes),
+                "cancelled_count": 0
+            }
+
+        if not failed_cancellations:
+            return {
+                "success": True,
+                "message": f"Successfully cancelled all {total_success_count} workers on {len(target_nodes)} node(s) named '{nodeName}'",
+                "affected_nodes": len(target_nodes),
+                "cancelled_count": total_success_count
+            }
+        else:
+            return {
+                "partial_success": True,
+                "message": f"Cancelled {total_success_count} out of {total_worker_count} workers on {len(target_nodes)} node(s) named '{nodeName}'",
+                "affected_nodes": len(target_nodes),
+                "cancelled_count": total_success_count,
+                "failed_cancellations": failed_cancellations
+            }
     
     def close(self):
         """Close the session to free resources."""

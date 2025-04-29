@@ -50,6 +50,20 @@
                     "description": "Mode to scan (default find new files only)"
                 }
             }
+        },
+        "cancel_workers_by_node_name": {
+            "name": "Cancel Workers by Node Name",
+            "description": "Cancel all workers on a node identified by its name",
+            "fields": {
+                "node_name": {
+                    "name": "Node Name",
+                    "description": "Name of the node where workers should be cancelled"
+                },
+                "cause": {
+                    "name": "Cause",
+                    "description": "Reason for cancellation (default: user)"
+                }
+            }
         }
     }
 }

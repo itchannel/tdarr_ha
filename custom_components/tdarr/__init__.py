@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
     DOMAIN,
@@ -32,6 +33,19 @@ CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 PLATFORMS = ["sensor", "switch"]
 
 _LOGGER = logging.getLogger(__name__)
+
+# Service schema for refresh_library
+REFRESH_LIBRARY_SCHEMA = vol.Schema({
+    vol.Required("library"): cv.string,
+    vol.Optional("mode", default="scanFindNew"): cv.string,
+    vol.Optional("folderpath", default=""): cv.string,
+})
+
+# Service schema for cancel_workers_by_node_name
+CANCEL_WORKERS_SCHEMA = vol.Schema({
+    vol.Required("node_name"): cv.string,
+    vol.Optional("cause", default="user"): cv.string,
+})
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
@@ -53,17 +67,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     else:
         update_interval = UPDATE_INTERVAL_DEFAULT
 
-    #for ar in entry.data:
-        #_LOGGER.debug(ar)
-
     coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval, apikey)
 
     await coordinator.async_refresh()  # Get initial data
-       # Registers update listener to update config entry when options are updated.
-    #_LOGGER.debug(coordinator.data)
+    
     tdarr_options_listener = entry.add_update_listener(options_update_listener) 
-
-   
 
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
@@ -72,22 +80,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         COORDINATOR : coordinator,
         "tdarr_options_listener": tdarr_options_listener
     }
-        
-
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Register service to refresh library - defined as a local function
     async def async_refresh_library_service(service_call):
         await hass.async_add_executor_job(
             refresh_library, hass, service_call, coordinator
         )
 
+    # Define cancel workers service handler locally to capture coordinator
+    async def handle_cancel_workers(service_call):
+        """Handle cancel workers service call."""
+        await hass.async_add_executor_job(
+            cancel_workers_by_node_name, hass, service_call, coordinator
+        )
+        
+        # Now that we're back in the event loop, safely refresh the coordinator
+        await coordinator.async_refresh()
+
+    # Register services with proper local handlers
     hass.services.async_register(
         DOMAIN,
         "refresh_library", 
-        async_refresh_library_service
+        async_refresh_library_service,
+        schema=REFRESH_LIBRARY_SCHEMA
     )
 
+    hass.services.async_register(
+        DOMAIN,
+        "cancel_workers_by_node_name",
+        handle_cancel_workers,  # Use the local function that captures coordinator
+        schema=CANCEL_WORKERS_SCHEMA
+    )
 
     return True
 
@@ -116,6 +141,32 @@ def refresh_library(hass, service, coordinator):
     if "ERROR" in status:
         _LOGGER.debug(status)
         raise HomeAssistantError(status["ERROR"])
+
+def cancel_workers_by_node_name(hass, service, coordinator):
+    """Cancel all workers on a node by name."""
+    node_name = service.data.get("node_name", "")
+    cause = service.data.get("cause", "user")
+    
+    if not node_name:
+        _LOGGER.error("Node name is required")
+        raise HomeAssistantError("Node name is required")
+    
+    _LOGGER.debug("Cancelling all workers on node '%s'", node_name)
+    result = coordinator.tdarr.cancelAllWorkersByNodeName(node_name, cause)
+    
+    if "error" in result:
+        _LOGGER.error("Failed to cancel workers: %s", result.get("message", "Unknown error"))
+        raise HomeAssistantError(f"Failed to cancel workers: {result.get('message', 'Unknown error')}")
+    
+    _LOGGER.info(
+        "Cancelled %s workers on %s node(s) named '%s'", 
+        result.get("cancelled_count", 0),
+        result.get("affected_nodes", 0),
+        node_name
+    )
+    
+    # Just return the result, don't refresh the coordinator here
+    return result
 
 async def options_update_listener(
     hass: HomeAssistant,  entry: ConfigEntry 
@@ -152,7 +203,7 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
 
                 data["nodes"] = await self._hass.async_add_executor_job(
                     self.tdarr.getNodes
-                )          
+                )        
 
                 data["stats"] = await self._hass.async_add_executor_job(
                     self.tdarr.getStats
