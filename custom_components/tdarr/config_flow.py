@@ -12,7 +12,9 @@ from .const import (
     SERVERPORT,
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_DEFAULT,
-    APIKEY
+    APIKEY,
+    USE_SSL,
+    VERIFY_SSL,
 )
 from .tdarr import Server
 
@@ -22,7 +24,9 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(SERVERIP): str,
         vol.Required(SERVERPORT, default="8265"): str,
-        vol.Optional(APIKEY, default=""): str
+        vol.Optional(APIKEY, default=""): str,
+        vol.Optional(USE_SSL, default=False): bool,
+        vol.Optional(VERIFY_SSL, default=True): bool,
     }
 )
 
@@ -32,7 +36,13 @@ async def validate_input(hass: core.HomeAssistant, data):
     Data has the keys from DATA_SCHEMA with values provided by the user.
     """
     
-    tdarr = Server(data[SERVERIP], data[SERVERPORT], data[APIKEY])
+    tdarr = Server(
+        data[SERVERIP],
+        data[SERVERPORT],
+        data[APIKEY],
+        use_ssl=data.get(USE_SSL, False),
+        verify_ssl=data.get(VERIFY_SSL, True),
+    )
 
     result = await hass.async_add_executor_job(tdarr.getSettings)
     if result.get("status", "") == "ERROR":
