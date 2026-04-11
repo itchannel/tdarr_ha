@@ -13,9 +13,11 @@
         "step": {
             "user": {
                 "data": {
-                    "serverip": "Tdarr Server IP",
+                    "serverip": "Tdarr Server Host / IP",
                     "serverport": "Tdarr Server Port",
-                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
+                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)",
+                    "use_ssl": "Use SSL (HTTPS)",
+                    "verify_ssl": "Verify SSL Certificate"
                 }
             }
         }

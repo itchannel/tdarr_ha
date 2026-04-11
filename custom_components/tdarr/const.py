@@ -6,6 +6,8 @@ UPDATE_INTERVAL = "update_interval"
 UPDATE_INTERVAL_DEFAULT = 60
 COORDINATOR = "coordinator"
 APIKEY = "apikey"
+USE_SSL = "use_ssl"
+VERIFY_SSL = "verify_ssl"
 
 SENSORS = {
     "server": {"icon": "mdi:server", "type": "single", "entry": "server"},

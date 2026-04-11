@@ -5,16 +5,18 @@ _LOGGER = logging.getLogger(__name__)
 
 class Server(object):
     # Class representing a tdarr server
-    def __init__(self, url, port, apikey=""):
+    def __init__(self, url, port, apikey="", use_ssl=False, verify_ssl=True):
         self.url = url
-        self.baseurl = 'http://' + self.url + ':' + port + '/api/v2/'
+        scheme = "https" if use_ssl else "http"
+        self.baseurl = f"{scheme}://{self.url}:{port}/api/v2/"
+        self.verify_ssl = verify_ssl
         self.headers = {
             'Content-Type': 'application/json',
             'x-api-key': apikey
         }
-        
+
     def getNodes(self):
-        r = requests.get(self.baseurl + 'get-nodes', headers=self.headers)
+        r = requests.get(self.baseurl + 'get-nodes', headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             result = r.json()
             return result
@@ -22,13 +24,13 @@ class Server(object):
             return "ERROR"
 
     def getStatus(self):
-        r = requests.get(self.baseurl + 'status', headers=self.headers)
+        r = requests.get(self.baseurl + 'status', headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             result = r.json()
             return result
         else:
             return "ERROR"
-    
+
     def getLibraries(self):
         libraries = []
         library = self.getPies()
@@ -49,24 +51,24 @@ class Server(object):
                 "mode":"getById",
                 "docID":"statistics",
                 "obj":{}
-                },
+            },
             "timeout":1000
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             return r.json()
         else:
             return "ERROR"
-    
+
     def getLibraryStats(self):
         post = {
             "data": {
                 "collection":"LibrarySettingsJSONDB",
                 "mode":"getAll",
-                },
+            },
             "timeout":20000
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             return r.json()
         else:
@@ -77,12 +79,12 @@ class Server(object):
                 "libraryId":libraryID
                 },
         }
-        r = requests.post(self.baseurl + 'stats/get-pies', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'stats/get-pies', json = post, headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             return r.json()["pieStats"]
         else:
             return "ERROR"
-        
+
     def getStaged(self):
         post = {
             "data": {
@@ -91,31 +93,31 @@ class Server(object):
                 "pageSize":10,
                 "sorts":[],
                 "opts":{}
-                },
+            },
             "timeout":1000
         }
-        r = requests.post(self.baseurl + 'client/staged', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'client/staged', json = post, headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             return r.json()
         else:
             return "ERROR"
-        
-    def getSettings(self):  
+
+    def getSettings(self):
         post = {
             "data": {
                 "collection":"SettingsGlobalJSONDB",
                 "mode":"getById",
                 "docID":"globalsettings",
                 "obj":{}
-                },
+            },
             "timeout":1000
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             return r.json()
         else:
             return {"message": r.text, "status_code": r.status_code, "status": "ERROR"}
-        
+
     def pauseNode(self, nodeID, status):
 
         if nodeID == "pauseAll":
@@ -127,10 +129,10 @@ class Server(object):
                     "obj":{
                         "pauseAllNodes": status
                         }
-                    },
+                },
                     "timeout":20000
-                }
-            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers)
+            }
+            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers, verify=self.verify_ssl)
         elif nodeID == "ignoreSchedules":
             data = {
                 "data":{
@@ -143,7 +145,7 @@ class Server(object):
                     },
                     "timeout":20000
                 }
-            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers)
+            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers, verify=self.verify_ssl)
         else:
             data = {
                 "data": {
@@ -153,7 +155,7 @@ class Server(object):
                     }
                 }
             }
-            r = requests.post(self.baseurl + 'update-node', json=data, headers=self.headers)
+            r = requests.post(self.baseurl + 'update-node', json=data, headers=self.headers, verify=self.verify_ssl)
         if r.status_code == 200:
             return "OK"
         else:
@@ -184,7 +186,7 @@ class Server(object):
             }
         }
 
-        r = requests.post(self.baseurl + "scan-files", json=data, headers=self.headers)
+        r = requests.post(self.baseurl + "scan-files", json=data, headers=self.headers, verify=self.verify_ssl)
 
         if r.status_code == 200:
             _LOGGER.debug(r.text)
@@ -200,4 +202,3 @@ class Server(object):
 
     
 
-    

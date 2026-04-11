@@ -22,7 +22,9 @@ from .const import (
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_DEFAULT,
     COORDINATOR,
-    APIKEY
+    APIKEY,
+    USE_SSL,
+    VERIFY_SSL,
 )
 
 from .tdarr import Server
@@ -48,6 +50,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     else:
         apikey = ""
 
+    use_ssl = entry.data.get(USE_SSL, False)
+    verify_ssl = entry.data.get(VERIFY_SSL, True)
+
     if UPDATE_INTERVAL in entry.options:
         update_interval = entry.options[UPDATE_INTERVAL]
     else:
@@ -56,7 +61,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     #for ar in entry.data:
         #_LOGGER.debug(ar)
 
-    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval, apikey)
+    coordinator = TdarrDataUpdateCoordinator(
+        hass, serverip, serverport, update_interval, apikey, use_ssl, verify_ssl
+    )
 
     await coordinator.async_refresh()  # Get initial data
        # Registers update listener to update config entry when options are updated.
@@ -126,12 +133,23 @@ async def options_update_listener(
 class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
     """DataUpdateCoordinator to handle fetching new data about the Tdarr Controller."""
 
-    def __init__(self, hass, serverip, serverport, update_interval, apikey):
+    def __init__(
+        self,
+        hass,
+        serverip,
+        serverport,
+        update_interval,
+        apikey,
+        use_ssl=False,
+        verify_ssl=True,
+    ):
         """Initialize the coordinator and set up the Controller object."""
         self._hass = hass
         self.serverip = serverip
         self.serverport = serverport
-        self.tdarr = Server(serverip, serverport, apikey)
+        self.tdarr = Server(
+            serverip, serverport, apikey, use_ssl=use_ssl, verify_ssl=verify_ssl
+        )
         self._available = True
 
         super().__init__(
