@@ -10,10 +10,13 @@ from homeassistant.core import callback
 from .const import (
     APIKEY,
     DOMAIN,
+    LIBRARY_SCAN_INTERVAL,
+    LIBRARY_SCAN_INTERVAL_DEFAULT,
     SERVERIP,
     SERVERPORT,
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_DEFAULT,
+    VERIFY_SSL,
 )
 from .tdarr import Server, TdarrAuthError, TdarrError
 
@@ -22,8 +25,9 @@ _LOGGER = logging.getLogger(__name__)
 DATA_SCHEMA = vol.Schema(
     {
         vol.Required(SERVERIP): str,
-        vol.Required(SERVERPORT, default="8265"): str,
+        vol.Optional(SERVERPORT, default="8265"): str,
         vol.Optional(APIKEY, default=""): str,
+        vol.Optional(VERIFY_SSL, default=True): bool,
     }
 )
 
@@ -33,7 +37,12 @@ async def validate_input(hass: core.HomeAssistant, data):
 
     Data has the keys from DATA_SCHEMA with values provided by the user.
     """
-    tdarr = Server(data[SERVERIP], data[SERVERPORT], data.get(APIKEY, ""))
+    tdarr = Server(
+        data[SERVERIP],
+        data.get(SERVERPORT, ""),
+        data.get(APIKEY, ""),
+        data.get(VERIFY_SSL, True),
+    )
     await hass.async_add_executor_job(tdarr.getSettings)
 
     # Return info that you want to store in the config entry.
@@ -49,6 +58,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
+            user_input[SERVERIP] = user_input[SERVERIP].strip().rstrip("/")
+            user_input[SERVERPORT] = user_input.get(SERVERPORT, "").strip()
             user_input[APIKEY] = user_input.get(APIKEY, "").strip()
 
             await self.async_set_unique_id(
@@ -135,6 +146,12 @@ class OptionsFlow(config_entries.OptionsFlow):
                     ),
                 ),
             ): vol.All(vol.Coerce(int), vol.Range(min=5)),
+            vol.Optional(
+                LIBRARY_SCAN_INTERVAL,
+                default=self.config_entry.options.get(
+                    LIBRARY_SCAN_INTERVAL, LIBRARY_SCAN_INTERVAL_DEFAULT
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=60)),
             vol.Optional(
                 APIKEY,
                 default=self.config_entry.data.get(APIKEY, ""),

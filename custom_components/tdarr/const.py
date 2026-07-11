@@ -4,8 +4,11 @@ MANUFACTURER = "Tdarr"
 SERVERPORT = "serverport"
 UPDATE_INTERVAL = "update_interval"
 UPDATE_INTERVAL_DEFAULT = 60
+LIBRARY_SCAN_INTERVAL = "library_scan_interval"
+LIBRARY_SCAN_INTERVAL_DEFAULT = 600
 COORDINATOR = "coordinator"
 APIKEY = "apikey"
+VERIFY_SSL = "verify_ssl"
 
 SENSORS = {
     "server": {"icon": "mdi:server", "type": "single", "entry": "server"},

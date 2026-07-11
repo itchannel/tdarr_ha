@@ -6,8 +6,8 @@
 
 ## Install
 Use HACS and add as a custom repo. Once the integration is installed go to your integrations and follow the configuration options below:
-- Tdarr Server IP
-- Tdarr Port (Prefilled to Tdarr default port 8265)
+- Tdarr Server IP or full URL (e.g. `192.168.1.10` or `https://tdarr.example.com` for a reverse proxy)
+- Tdarr Port (Prefilled to Tdarr default port 8265, leave blank when using a URL without a port)
 - Tdarr API Key (only needed if authentication is enabled on the server)
 
 Requires Home Assistant 2024.11 or newer.
@@ -24,6 +24,9 @@ Requires Home Assistant 2024.11 or newer.
 - Re-authentication flow when the API key is changed/revoked
 - Diagnostics download (API key redacted) for easier issue reports
 - Long-term statistics on numeric sensors (FPS, file counts, space saved)
+- HTTPS/reverse proxy support with optional SSL verification
+- `current_files` attribute on node sensors showing what each node is processing (file, progress, ETA)
+- Separate (slower) polling interval for library statistics as these queries are heavy on the Tdarr server
 
 ## Screenshots
 ![Paused Sensor](https://github.com/itchannel/screenshots/raw/main/tdarr_node_paused.jpg)

@@ -14,9 +14,10 @@
         "step": {
             "user": {
                 "data": {
-                    "serverip": "Tdarr Server IP",
-                    "serverport": "Tdarr Server Port",
-                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
+                    "serverip": "Tdarr Server IP or URL (e.g. 192.168.1.10 or https://tdarr.example.com)",
+                    "serverport": "Tdarr Server Port (leave blank if using a URL without a port)",
+                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)",
+                    "verify_ssl": "Verify SSL certificate"
                 }
             },
             "reauth_confirm": {
@@ -33,6 +34,7 @@
             "init": {
                 "data": {
                     "update_interval": "Interval to poll Server (Seconds)",
+                    "library_scan_interval": "Interval to poll Library statistics (Seconds, these queries are heavy on the Tdarr server)",
                     "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
                 },
                 "description": "Configure Server Options"

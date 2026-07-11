@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import timedelta
 
 import voluptuous as vol
@@ -20,11 +21,14 @@ from .const import (
     APIKEY,
     COORDINATOR,
     DOMAIN,
+    LIBRARY_SCAN_INTERVAL,
+    LIBRARY_SCAN_INTERVAL_DEFAULT,
     MANUFACTURER,
     SERVERIP,
     SERVERPORT,
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_DEFAULT,
+    VERIFY_SSL,
 )
 from .tdarr import Server, TdarrAuthError, TdarrError
 
@@ -177,8 +181,17 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
         self.serverip = entry.data[SERVERIP]
         self.serverport = entry.data[SERVERPORT]
         self.tdarr = Server(
-            self.serverip, self.serverport, entry.data.get(APIKEY, "")
+            self.serverip,
+            self.serverport,
+            entry.data.get(APIKEY, ""),
+            entry.data.get(VERIFY_SSL, True),
         )
+        # Library statistics (get-pies) are expensive for the Tdarr server, so
+        # they are polled on their own slower interval (issue #39)
+        self._library_scan_interval = entry.options.get(
+            LIBRARY_SCAN_INTERVAL, LIBRARY_SCAN_INTERVAL_DEFAULT
+        )
+        self._last_library_fetch = None
 
         super().__init__(
             hass,
@@ -190,14 +203,25 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
 
     def _fetch_data(self) -> dict:
         """Fetch all data from the Tdarr server (runs in the executor)."""
-        return {
+        data = {
             "server": self.tdarr.getStatus(),
             "nodes": self.tdarr.getNodes(),
             "stats": self.tdarr.getStats(),
             "staged": self.tdarr.getStaged(),
-            "libraries": self.tdarr.getLibraries(),
             "globalsettings": self.tdarr.getSettings(),
         }
+
+        now = time.monotonic()
+        if (
+            self._last_library_fetch is None
+            or now - self._last_library_fetch >= self._library_scan_interval
+        ):
+            data["libraries"] = self.tdarr.getLibraries()
+            self._last_library_fetch = now
+        else:
+            data["libraries"] = (self.data or {}).get("libraries", [])
+
+        return data
 
     async def _async_update_data(self) -> dict:
         """Fetch data from Tdarr Server."""

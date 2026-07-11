@@ -82,6 +82,28 @@ class TdarrSensor(TdarrEntity, SensorEntity):
             return None
         return nodes.get(self.sensor.get("_id"))
 
+    @staticmethod
+    def _current_files(node):
+        """Summarise what a node's workers are currently processing."""
+        current = []
+        for worker in node.get("workers", {}).values():
+            if not isinstance(worker, dict):
+                continue
+            file_path = worker.get("file", "")
+            if not file_path:
+                continue
+            current.append(
+                {
+                    "file": file_path.replace("\\", "/").rsplit("/", 1)[-1],
+                    "type": worker.get("workerType"),
+                    "status": worker.get("status"),
+                    "percentage": worker.get("percentage"),
+                    "eta": worker.get("ETA"),
+                    "fps": worker.get("fps"),
+                }
+            )
+        return current
+
     def _find_library(self):
         """Find this sensor's library in the current coordinator data."""
         for library in self.coordinator.data.get("libraries", []):
@@ -131,7 +153,12 @@ class TdarrSensor(TdarrEntity, SensorEntity):
             if self.type == "server":
                 return self.coordinator.data.get("server", {})
             if self.type == "node":
-                return self._find_node() or {}
+                node = self._find_node()
+                if node is None:
+                    return {}
+                attributes = dict(node)
+                attributes["current_files"] = self._current_files(node)
+                return attributes
             if self.type == "stats_spacesaved":
                 return self.coordinator.data.get("stats", {})
             if self.type == "library":

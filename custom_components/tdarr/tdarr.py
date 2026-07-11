@@ -25,10 +25,19 @@ class TdarrAuthError(TdarrError):
 class Server:
     """Class representing a Tdarr server."""
 
-    def __init__(self, url, port, apikey=""):
+    def __init__(self, url, port, apikey="", verify_ssl=True):
         self.url = url
-        self.baseurl = f"http://{url}:{port}/api/v2/"
+        # Accept a bare IP/hostname (default http) or a full http(s):// URL so
+        # the server can sit behind a reverse proxy
+        base = str(url).strip().rstrip("/")
+        if not base.startswith(("http://", "https://")):
+            base = f"http://{base}"
+        port = str(port).strip() if port is not None else ""
+        if port:
+            base = f"{base}:{port}"
+        self.baseurl = f"{base}/api/v2/"
         self.session = requests.Session()
+        self.session.verify = verify_ssl
         self.session.headers.update(
             {
                 "Content-Type": "application/json",
