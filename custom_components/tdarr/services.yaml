@@ -6,7 +6,7 @@ refresh_library:
       selector:
         text:
     folderpath:
-      required: true
+      required: false
       example: "/Movies"
       selector:
         text:
@@ -17,3 +17,16 @@ refresh_library:
           options:
             - scanFindNew
             - scanFresh
+cancel_workers_by_node_name:
+  fields:
+    node_name:
+      required: true
+      example: "Media Server"
+      selector:
+        text:
+    cause:
+      required: false
+      default: "user"
+      example: "system maintenance"
+      selector:
+        text:

@@ -163,6 +163,40 @@ class Server:
             }
             self._post("update-node", data)
 
+    def cancelWorker(self, nodeID, workerID, cause="user"):
+        """Cancel a specific worker on a node."""
+        data = {
+            "data": {
+                "nodeID": nodeID,
+                "workerID": workerID,
+                "cause": cause,
+            }
+        }
+        self._post("cancel-worker-item", data)
+
+    def cancelAllWorkersByNodeName(self, nodeName, cause="user"):
+        """Cancel all workers running on nodes with the given name.
+
+        Returns the number of workers cancelled.
+        """
+        nodes = self.getNodes()
+        target_nodes = [
+            node
+            for node in nodes.values()
+            if isinstance(node, dict)
+            and node.get("nodeName", "").lower() == nodeName.lower()
+        ]
+        if not target_nodes:
+            raise TdarrError(f"No nodes found with name '{nodeName}'")
+
+        cancelled = 0
+        for node in target_nodes:
+            for worker in node.get("workers", {}).values():
+                if isinstance(worker, dict) and worker.get("_id"):
+                    self.cancelWorker(node["_id"], worker["_id"], cause)
+                    cancelled += 1
+        return cancelled
+
     def refreshLibrary(self, libraryname, mode, folderpath):
         if not mode:
             mode = "scanFindNew"

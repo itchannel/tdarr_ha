@@ -50,11 +50,25 @@
                 },
                 "folderpath": {
                     "name": "Folder path",
-                    "description": "Library folder path e.g. /Movies."
+                    "description": "Library folder path e.g. /Movies. Leave blank to scan the whole library."
                 },
                 "mode": {
                     "name": "Scan mode",
                     "description": "Mode to scan (default find new files only)."
+                }
+            }
+        },
+        "cancel_workers_by_node_name": {
+            "name": "Cancel workers by node name",
+            "description": "Cancel all workers on a node identified by its name.",
+            "fields": {
+                "node_name": {
+                    "name": "Node name",
+                    "description": "Name of the node where workers should be cancelled."
+                },
+                "cause": {
+                    "name": "Cause",
+                    "description": "Reason for cancellation."
                 }
             }
         }

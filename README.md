@@ -20,6 +20,7 @@ Requires Home Assistant 2024.11 or newer.
 - Switches to pause/unpause a node
 - Switches to pause all nodes and ignore schedules
 - `tdarr.refresh_library` service to rescan a library
+- `tdarr.cancel_workers_by_node_name` service to cancel all transcodes/workers on a node
 - Re-authentication flow when the API key is changed/revoked
 - Diagnostics download (API key redacted) for easier issue reports
 - Long-term statistics on numeric sensors (FPS, file counts, space saved)

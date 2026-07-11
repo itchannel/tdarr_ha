@@ -2,6 +2,9 @@
   "services": {
     "refresh_library": {
       "service": "mdi:refresh"
+    },
+    "cancel_workers_by_node_name": {
+      "service": "mdi:cancel"
     }
   }
 }

@@ -36,10 +36,18 @@ SERVICE_REFRESH_LIBRARY = "refresh_library"
 SERVICE_REFRESH_LIBRARY_SCHEMA = vol.Schema(
     {
         vol.Required("library"): cv.string,
-        vol.Required("folderpath"): cv.string,
+        vol.Optional("folderpath", default=""): cv.string,
         vol.Optional("mode", default="scanFindNew"): vol.In(
             ["scanFindNew", "scanFresh"]
         ),
+    }
+)
+
+SERVICE_CANCEL_WORKERS = "cancel_workers_by_node_name"
+SERVICE_CANCEL_WORKERS_SCHEMA = vol.Schema(
+    {
+        vol.Required("node_name"): cv.string,
+        vol.Optional("cause", default="user"): cv.string,
     }
 )
 
@@ -53,11 +61,21 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def async_refresh_library_service(service_call: ServiceCall) -> None:
         await hass.async_add_executor_job(refresh_library, hass, service_call)
 
+    async def async_cancel_workers_service(service_call: ServiceCall) -> None:
+        await hass.async_add_executor_job(cancel_workers, hass, service_call)
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_REFRESH_LIBRARY,
         async_refresh_library_service,
         schema=SERVICE_REFRESH_LIBRARY_SCHEMA,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CANCEL_WORKERS,
+        async_cancel_workers_service,
+        schema=SERVICE_CANCEL_WORKERS_SCHEMA,
     )
 
     return True
@@ -92,17 +110,22 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
-def refresh_library(hass: HomeAssistant, service: ServiceCall) -> None:
-    """Handle the refresh_library service call against all configured servers."""
-    library = service.data["library"]
-    mode = service.data.get("mode", "scanFindNew")
-    folderpath = service.data["folderpath"]
-
-    coordinators = [
+def _get_coordinators(hass: HomeAssistant) -> list["TdarrDataUpdateCoordinator"]:
+    """Return the coordinators for all configured Tdarr servers."""
+    return [
         entry_data[COORDINATOR]
         for entry_data in hass.data.get(DOMAIN, {}).values()
         if isinstance(entry_data, dict) and COORDINATOR in entry_data
     ]
+
+
+def refresh_library(hass: HomeAssistant, service: ServiceCall) -> None:
+    """Handle the refresh_library service call against all configured servers."""
+    library = service.data["library"]
+    mode = service.data.get("mode", "scanFindNew")
+    folderpath = service.data.get("folderpath", "")
+
+    coordinators = _get_coordinators(hass)
     if not coordinators:
         raise HomeAssistantError("No Tdarr servers are configured")
 
@@ -110,6 +133,29 @@ def refresh_library(hass: HomeAssistant, service: ServiceCall) -> None:
     for coordinator in coordinators:
         try:
             coordinator.tdarr.refreshLibrary(library, mode, folderpath)
+            return
+        except TdarrError as ex:
+            errors.append(str(ex))
+
+    raise HomeAssistantError("; ".join(errors))
+
+
+def cancel_workers(hass: HomeAssistant, service: ServiceCall) -> None:
+    """Cancel all workers on nodes matching the given name."""
+    node_name = service.data["node_name"]
+    cause = service.data.get("cause", "user")
+
+    coordinators = _get_coordinators(hass)
+    if not coordinators:
+        raise HomeAssistantError("No Tdarr servers are configured")
+
+    errors = []
+    for coordinator in coordinators:
+        try:
+            cancelled = coordinator.tdarr.cancelAllWorkersByNodeName(node_name, cause)
+            _LOGGER.info(
+                "Cancelled %s worker(s) on node '%s'", cancelled, node_name
+            )
             return
         except TdarrError as ex:
             errors.append(str(ex))
