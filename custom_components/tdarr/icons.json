@@ -1,0 +1,7 @@
+{
+  "services": {
+    "refresh_library": {
+      "service": "mdi:refresh"
+    }
+  }
+}

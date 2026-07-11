@@ -1,34 +1,79 @@
+"""API client for a Tdarr server."""
 import logging
+
 import requests
 
 _LOGGER = logging.getLogger(__name__)
 
-class Server(object):
-    # Class representing a tdarr server
+REQUEST_TIMEOUT = 30
+
+AUTH_ERROR_SNIPPETS = ("Invalid API key", "No auth token provided")
+
+
+class TdarrError(Exception):
+    """Base exception for Tdarr API errors."""
+
+
+class TdarrConnectionError(TdarrError):
+    """Raised when the Tdarr server cannot be reached or returns an error."""
+
+
+class TdarrAuthError(TdarrError):
+    """Raised when the Tdarr server rejects the API key."""
+
+
+class Server:
+    """Class representing a Tdarr server."""
+
     def __init__(self, url, port, apikey=""):
         self.url = url
-        self.baseurl = 'http://' + self.url + ':' + port + '/api/v2/'
-        self.headers = {
-            'Content-Type': 'application/json',
-            'x-api-key': apikey
-        }
-        
+        self.baseurl = f"http://{url}:{port}/api/v2/"
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "Content-Type": "application/json",
+                "x-api-key": apikey or "",
+            }
+        )
+
+    def _request(self, method, endpoint, payload=None):
+        try:
+            response = self.session.request(
+                method,
+                self.baseurl + endpoint,
+                json=payload,
+                timeout=REQUEST_TIMEOUT,
+            )
+        except requests.exceptions.RequestException as ex:
+            raise TdarrConnectionError(
+                f"Error connecting to Tdarr server at {self.url}: {ex}"
+            ) from ex
+
+        if response.status_code in (401, 403) or (
+            response.status_code != 200
+            and any(snippet in response.text for snippet in AUTH_ERROR_SNIPPETS)
+        ):
+            raise TdarrAuthError(
+                f"Tdarr server rejected the request: {response.text}"
+            )
+        if response.status_code != 200:
+            raise TdarrConnectionError(
+                f"Tdarr server returned HTTP {response.status_code}: {response.text}"
+            )
+        return response
+
+    def _get(self, endpoint):
+        return self._request("GET", endpoint).json()
+
+    def _post(self, endpoint, payload):
+        return self._request("POST", endpoint, payload)
+
     def getNodes(self):
-        r = requests.get(self.baseurl + 'get-nodes', headers=self.headers)
-        if r.status_code == 200:
-            result = r.json()
-            return result
-        else:
-            return "ERROR"
+        return self._get("get-nodes")
 
     def getStatus(self):
-        r = requests.get(self.baseurl + 'status', headers=self.headers)
-        if r.status_code == 200:
-            result = r.json()
-            return result
-        else:
-            return "ERROR"
-    
+        return self._get("status")
+
     def getLibraries(self):
         libraries = []
         library = self.getPies()
@@ -38,166 +83,105 @@ class Server(object):
             library2 = self.getPies(lib["_id"])
             library2["name"] = lib["name"]
             libraries.append(library2)
-
-
         return libraries
 
     def getStats(self):
         post = {
             "data": {
-                "collection":"StatisticsJSONDB",
-                "mode":"getById",
-                "docID":"statistics",
-                "obj":{}
-                },
-            "timeout":1000
+                "collection": "StatisticsJSONDB",
+                "mode": "getById",
+                "docID": "statistics",
+                "obj": {},
+            },
+            "timeout": 1000,
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
-        if r.status_code == 200:
-            return r.json()
-        else:
-            return "ERROR"
-    
+        return self._post("cruddb", post).json()
+
     def getLibraryStats(self):
         post = {
             "data": {
-                "collection":"LibrarySettingsJSONDB",
-                "mode":"getAll",
-                },
-            "timeout":20000
+                "collection": "LibrarySettingsJSONDB",
+                "mode": "getAll",
+            },
+            "timeout": 20000,
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
-        if r.status_code == 200:
-            return r.json()
-        else:
-            return
+        result = self._post("cruddb", post).json()
+        return result if isinstance(result, list) else []
+
     def getPies(self, libraryID=""):
         post = {
             "data": {
-                "libraryId":libraryID
-                },
+                "libraryId": libraryID,
+            },
         }
-        r = requests.post(self.baseurl + 'stats/get-pies', json = post, headers=self.headers)
-        if r.status_code == 200:
-            return r.json()["pieStats"]
-        else:
-            return "ERROR"
-        
+        return self._post("stats/get-pies", post).json()["pieStats"]
+
     def getStaged(self):
         post = {
             "data": {
-                "filters":[],
-                "start":0,
-                "pageSize":10,
-                "sorts":[],
-                "opts":{}
-                },
-            "timeout":1000
+                "filters": [],
+                "start": 0,
+                "pageSize": 10,
+                "sorts": [],
+                "opts": {},
+            },
+            "timeout": 1000,
         }
-        r = requests.post(self.baseurl + 'client/staged', json = post, headers=self.headers)
-        if r.status_code == 200:
-            return r.json()
-        else:
-            return "ERROR"
-        
-    def getSettings(self):  
+        return self._post("client/staged", post).json()
+
+    def getSettings(self):
         post = {
             "data": {
-                "collection":"SettingsGlobalJSONDB",
-                "mode":"getById",
-                "docID":"globalsettings",
-                "obj":{}
-                },
-            "timeout":1000
+                "collection": "SettingsGlobalJSONDB",
+                "mode": "getById",
+                "docID": "globalsettings",
+                "obj": {},
+            },
+            "timeout": 1000,
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
-        if r.status_code == 200:
-            return r.json()
-        else:
-            return {"message": r.text, "status_code": r.status_code, "status": "ERROR"}
-        
-    def pauseNode(self, nodeID, status):
+        return self._post("cruddb", post).json()
 
-        if nodeID == "pauseAll":
+    def pauseNode(self, nodeID, status):
+        if nodeID in ("pauseAll", "ignoreSchedules"):
+            setting = "pauseAllNodes" if nodeID == "pauseAll" else "ignoreSchedules"
             data = {
-                "data":{
-                    "collection":"SettingsGlobalJSONDB",
-                    "mode":"update",
-                    "docID":"globalsettings",
-                    "obj":{
-                        "pauseAllNodes": status
-                        }
-                    },
-                    "timeout":20000
-                }
-            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers)
-        elif nodeID == "ignoreSchedules":
-            data = {
-                "data":{
-                    "collection":"SettingsGlobalJSONDB",
-                    "mode":"update",
-                    "docID":"globalsettings",
-                    "obj":{
-                        "ignoreSchedules": status
-                        }
-                    },
-                    "timeout":20000
-                }
-            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers)
+                "data": {
+                    "collection": "SettingsGlobalJSONDB",
+                    "mode": "update",
+                    "docID": "globalsettings",
+                    "obj": {setting: status},
+                },
+                "timeout": 20000,
+            }
+            self._post("cruddb", data)
         else:
             data = {
                 "data": {
                     "nodeID": nodeID,
-                    "nodeUpdates": {
-                        "nodePaused": status
-                    }
+                    "nodeUpdates": {"nodePaused": status},
                 }
             }
-            r = requests.post(self.baseurl + 'update-node', json=data, headers=self.headers)
-        if r.status_code == 200:
-            return "OK"
-        else:
-            return "ERROR"
+            self._post("update-node", data)
 
     def refreshLibrary(self, libraryname, mode, folderpath):
-        stats = self.getLibraryStats()
-        libid = None
-        _LOGGER.debug(mode)
-
-        if mode == "":
+        if not mode:
             mode = "scanFindNew"
-        for lib in stats:
+
+        libid = None
+        for lib in self.getLibraryStats():
             if libraryname in lib["name"]:
                 libid = lib["_id"]
 
         if libid is None:
-            return {"ERROR": "Library Name not found"}
-
+            raise TdarrError(f"Library '{libraryname}' not found")
 
         data = {
             "data": {
                 "scanConfig": {
-                    "dbID" : libid,
+                    "dbID": libid,
                     "arrayOrPath": folderpath,
-                    "mode": mode
+                    "mode": mode,
                 }
             }
         }
-
-        r = requests.post(self.baseurl + "scan-files", json=data, headers=self.headers)
-
-        if r.status_code == 200:
-            _LOGGER.debug(r.text)
-            return {"SUCCESS"}
-        else:
-            return {"ERROR": r.text}
-
-
-
-            
-    
-
-
-    
-
-    
+        self._post("scan-files", data)

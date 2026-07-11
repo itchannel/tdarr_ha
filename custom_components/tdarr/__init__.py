@@ -1,13 +1,15 @@
 """The Tdarr integration."""
-import asyncio
+from __future__ import annotations
+
 import logging
 from datetime import timedelta
 
-import async_timeout
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -15,206 +17,163 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import (
+    APIKEY,
+    COORDINATOR,
     DOMAIN,
     MANUFACTURER,
     SERVERIP,
     SERVERPORT,
     UPDATE_INTERVAL,
     UPDATE_INTERVAL_DEFAULT,
-    COORDINATOR,
-    APIKEY
 )
+from .tdarr import Server, TdarrAuthError, TdarrError
 
-from .tdarr import Server
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH]
 
-PLATFORMS = ["sensor", "switch"]
+SERVICE_REFRESH_LIBRARY = "refresh_library"
+SERVICE_REFRESH_LIBRARY_SCHEMA = vol.Schema(
+    {
+        vol.Required("library"): cv.string,
+        vol.Required("folderpath"): cv.string,
+        vol.Optional("mode", default="scanFindNew"): vol.In(
+            ["scanFindNew", "scanFresh"]
+        ),
+    }
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass: HomeAssistant, config: dict):
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Tdarr component."""
     hass.data.setdefault(DOMAIN, {})
-    return True
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up Tdarr Server from a config entry."""
-    serverip = entry.data[SERVERIP]
-    serverport= entry.data[SERVERPORT]
-    if APIKEY in entry.data:
-        apikey = entry.data[APIKEY]
-    else:
-        apikey = ""
-
-    if UPDATE_INTERVAL in entry.options:
-        update_interval = entry.options[UPDATE_INTERVAL]
-    else:
-        update_interval = UPDATE_INTERVAL_DEFAULT
-
-    #for ar in entry.data:
-        #_LOGGER.debug(ar)
-
-    coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval, apikey)
-
-    await coordinator.async_refresh()  # Get initial data
-       # Registers update listener to update config entry when options are updated.
-    #_LOGGER.debug(coordinator.data)
-    tdarr_options_listener = entry.add_update_listener(options_update_listener) 
-
-   
-
-    if not coordinator.last_update_success:
-        raise ConfigEntryNotReady
-
-    hass.data[DOMAIN][entry.entry_id] = {
-        COORDINATOR : coordinator,
-        "tdarr_options_listener": tdarr_options_listener
-    }
-        
-
-
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    async def async_refresh_library_service(service_call):
-        await hass.async_add_executor_job(
-            refresh_library, hass, service_call, coordinator
-        )
+    async def async_refresh_library_service(service_call: ServiceCall) -> None:
+        await hass.async_add_executor_job(refresh_library, hass, service_call)
 
     hass.services.async_register(
         DOMAIN,
-        "refresh_library", 
-        async_refresh_library_service
+        SERVICE_REFRESH_LIBRARY,
+        async_refresh_library_service,
+        schema=SERVICE_REFRESH_LIBRARY_SCHEMA,
     )
-
 
     return True
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Unload a config entry."""
-    unload_ok = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, component)
-                for component in PLATFORMS
-            ]
-        )
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Tdarr Server from a config entry."""
+    # Older versions stored the update interval in entry.data, so fall back to it
+    update_interval = entry.options.get(
+        UPDATE_INTERVAL, entry.data.get(UPDATE_INTERVAL, UPDATE_INTERVAL_DEFAULT)
     )
-    #_LOGGER.debug(hass.data[DOMAIN][entry.entry_id])
-    hass.data[DOMAIN][entry.entry_id]["tdarr_options_listener"]()
+
+    coordinator = TdarrDataUpdateCoordinator(hass, entry, update_interval)
+    await coordinator.async_config_entry_first_refresh()
+
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = {COORDINATOR: coordinator}
+
+    entry.async_on_unload(entry.add_update_listener(options_update_listener))
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
 
-def refresh_library(hass, service, coordinator):
-    libraryid = service.data.get("library", "")
-    mode = service.data.get("mode", "scanFindNew")
-    folderpath = service.data.get("folderpath", "")
-    status = coordinator.tdarr.refreshLibrary(libraryid, mode, folderpath)
-    if "ERROR" in status:
-        _LOGGER.debug(status)
-        raise HomeAssistantError(status["ERROR"])
 
-async def options_update_listener(
-    hass: HomeAssistant,  entry: ConfigEntry 
-    ):
-        _LOGGER.debug("OPTIONS CHANGE")
-        await hass.config_entries.async_reload(entry.entry_id)
+def refresh_library(hass: HomeAssistant, service: ServiceCall) -> None:
+    """Handle the refresh_library service call against all configured servers."""
+    library = service.data["library"]
+    mode = service.data.get("mode", "scanFindNew")
+    folderpath = service.data["folderpath"]
+
+    coordinators = [
+        entry_data[COORDINATOR]
+        for entry_data in hass.data.get(DOMAIN, {}).values()
+        if isinstance(entry_data, dict) and COORDINATOR in entry_data
+    ]
+    if not coordinators:
+        raise HomeAssistantError("No Tdarr servers are configured")
+
+    errors = []
+    for coordinator in coordinators:
+        try:
+            coordinator.tdarr.refreshLibrary(library, mode, folderpath)
+            return
+        except TdarrError as ex:
+            errors.append(str(ex))
+
+    raise HomeAssistantError("; ".join(errors))
+
+
+async def options_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the config entry when options change."""
+    _LOGGER.debug("Options updated, reloading Tdarr entry")
+    await hass.config_entries.async_reload(entry.entry_id)
+
 
 class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
-    """DataUpdateCoordinator to handle fetching new data about the Tdarr Controller."""
+    """DataUpdateCoordinator to handle fetching new data about the Tdarr server."""
 
-    def __init__(self, hass, serverip, serverport, update_interval, apikey):
-        """Initialize the coordinator and set up the Controller object."""
-        self._hass = hass
-        self.serverip = serverip
-        self.serverport = serverport
-        self.tdarr = Server(serverip, serverport, apikey)
-        self._available = True
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, update_interval: int):
+        """Initialize the coordinator and set up the Server object."""
+        self.serverip = entry.data[SERVERIP]
+        self.serverport = entry.data[SERVERPORT]
+        self.tdarr = Server(
+            self.serverip, self.serverport, entry.data.get(APIKEY, "")
+        )
 
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=timedelta(seconds=update_interval),
         )
 
-    async def _async_update_data(self):
+    def _fetch_data(self) -> dict:
+        """Fetch all data from the Tdarr server (runs in the executor)."""
+        return {
+            "server": self.tdarr.getStatus(),
+            "nodes": self.tdarr.getNodes(),
+            "stats": self.tdarr.getStats(),
+            "staged": self.tdarr.getStaged(),
+            "libraries": self.tdarr.getLibraries(),
+            "globalsettings": self.tdarr.getSettings(),
+        }
+
+    async def _async_update_data(self) -> dict:
         """Fetch data from Tdarr Server."""
         try:
-            async with async_timeout.timeout(30):
-                data = {}
-                data["server"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getStatus  # Fetch new status
-                )
-
-                data["nodes"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getNodes
-                )          
-
-                data["stats"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getStats
-                )
-
-                data["staged"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getStaged
-                )
-
-                data["libraries"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getLibraries
-                )
-
-                data["globalsettings"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getSettings
-                )
-                #_LOGGER.debug(self.data)
-                if self.data is not None:
-                    #_LOGGER.debug(self.data)
-                    oldnodes = len(self.data["nodes"])
-                    #_LOGGER.debug(len(self.data["nodes"]))
-                else:
-                    oldnodes = len(data["nodes"])
-                #_LOGGER.debug(len(self.data["nodes"])
-                if oldnodes != len(data["nodes"]):
-                    _LOGGER.debug("Node Change Detected config reload required")
-                    # Reload integration to pick up new/changed nodes
-                    current_entries = self._hass.config_entries.async_entries(DOMAIN)
-
-                
-                    if len(current_entries) > 0:
-                        for entry in current_entries:
-                            _LOGGER.debug("SHOWING ENTRY")
-                            self._hass.config_entries.async_schedule_reload(entry.entry_id)
-
-
-        
-
-                return data
-        except Exception as ex:
-            self._available = False  # Mark as unavailable
-            _LOGGER.warning(str(ex))
-            _LOGGER.warning("Error communicating with Tdarr for %s", self.serverip)
+            data = await self.hass.async_add_executor_job(self._fetch_data)
+        except TdarrAuthError as ex:
+            raise ConfigEntryAuthFailed(
+                f"Tdarr server rejected the API key for {self.serverip}"
+            ) from ex
+        except TdarrError as ex:
             raise UpdateFailed(
-                f"Error communicating with Tdarr for {self.serverip}"
+                f"Error communicating with Tdarr for {self.serverip}: {ex}"
             ) from ex
 
-    async def reloadentities(self):
-        _LOGGER.debug("Reloading?")
-        current_entries = self._hass.config_entries.async_entries(DOMAIN)
-        
+        return data
 
-        reload_tasks = [
-            self._hass.config_entries.async_reload(entry.entry_id)
-            for entry in current_entries
-        ]
-
-        await asyncio.gather(*reload_tasks)
 
 class TdarrEntity(CoordinatorEntity):
+    """Base class for Tdarr entities."""
+
     def __init__(
-            self, *, device_id: str, name: str, coordinator: TdarrDataUpdateCoordinator
+        self, *, device_id: str, name: str, coordinator: TdarrDataUpdateCoordinator
     ):
         """Initialize the entity."""
         super().__init__(coordinator)
@@ -229,7 +188,6 @@ class TdarrEntity(CoordinatorEntity):
     @property
     def name(self):
         """Return the name of the entity."""
-        #_LOGGER.debug(self._name)
         return self._name
 
     @property
@@ -242,17 +200,15 @@ class TdarrEntity(CoordinatorEntity):
         """Return device information about this device."""
         if self._device_id is None:
             return None
-        
+
+        server = self.coordinator.data.get("server", {})
         sw_version = "Unknown"
-
-        if "version" in self.coordinator.data["server"]:
-            sw_version = self.coordinator.data["server"]["version"]
-
+        if isinstance(server, dict):
+            sw_version = server.get("version", "Unknown")
 
         return {
             "identifiers": {(DOMAIN, self.coordinator.serverip)},
             "name": f"Tdarr Server ({self.coordinator.serverip})",
-            #"hw_version": self.coordinator.data["system"]["hardware"],
             "sw_version": sw_version,
-            "manufacturer": MANUFACTURER
+            "manufacturer": MANUFACTURER,
         }

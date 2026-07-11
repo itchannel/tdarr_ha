@@ -1,7 +1,8 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Account is already configured"
+            "already_configured": "This Tdarr server is already configured",
+            "reauth_successful": "Re-authentication was successful"
         },
         "error": {
             "cannot_connect": "Failed to connect to Tdarr Server",
@@ -17,11 +18,17 @@
                     "serverport": "Tdarr Server Port",
                     "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Re-authenticate with Tdarr",
+                "description": "The Tdarr server rejected the API key. Enter a new API key.",
+                "data": {
+                    "apikey": "Tdarr API Key"
+                }
             }
         }
     },
-
-        "options": {
+    "options": {
         "step": {
             "init": {
                 "data": {
@@ -32,22 +39,22 @@
             }
         }
     },
-    "services":{
+    "services": {
         "refresh_library": {
-            "name": "Library",
-            "description": "Rescan/Refresh Tdarr Library",
+            "name": "Refresh library",
+            "description": "Rescan/Refresh a Tdarr library.",
             "fields": {
                 "library": {
                     "name": "Library",
-                    "description": "Library Name to refresh"
+                    "description": "Library name to refresh."
                 },
                 "folderpath": {
-                    "name": "Folder Path",
-                    "description": "Library Folder path e.g. /Movies (Have to include this for now)"
+                    "name": "Folder path",
+                    "description": "Library folder path e.g. /Movies."
                 },
                 "mode": {
-                    "name": "Scan Mode",
-                    "description": "Mode to scan (default find new files only)"
+                    "name": "Scan mode",
+                    "description": "Mode to scan (default find new files only)."
                 }
             }
         }

@@ -1,172 +1,167 @@
+"""Sensor platform for the Tdarr integration."""
 import logging
-import re
 
-from homeassistant.components.sensor import (
-    SensorEntity,
-    SensorDeviceClass,
-    SensorStateClass
-)
+from homeassistant.components.sensor import SensorEntity
 
 from . import TdarrEntity
-from .const import DOMAIN, COORDINATOR, SENSORS
+from .const import COORDINATOR, DOMAIN, SENSORS
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add the Entities from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
-    sensors = []
-    # Server Status Sensor
-    #_LOGGER.debug(entry.data)
-    for key, value in SENSORS.items():
-        if value.get("type", "") == "single":
-            sensors.append(TdarrSensor(entry, entry.data[value["entry"]], config_entry.options, key))
-    # Server Library Sensors
-    id = 0
-    for value in entry.data["libraries"]:
-        #value.insert(0, id)
-        sensors.append(TdarrSensor(entry, value, config_entry.options, "library"))
-        id += 1
-    # Server Node Sensors
-    fps_count = 0
-    for key, value in entry.data["nodes"].items():
-        sensors.append(TdarrSensor(entry, value, config_entry.options, "node"))
-        sensors.append(TdarrSensor(entry, value, config_entry.options, "nodefps"))
-    
+    coordinator = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
+    options = config_entry.options
 
-    async_add_entities(sensors, True)
+    async_add_entities(
+        TdarrSensor(coordinator, None, options, key)
+        for key, value in SENSORS.items()
+        if value.get("type", "") == "single"
+    )
+
+    known: set[str] = set()
+
+    def _async_add_dynamic_entities() -> None:
+        """Add entities for nodes/libraries discovered after setup."""
+        new_sensors = []
+        for library in coordinator.data.get("libraries", []):
+            key = "library_" + library["name"]
+            if key not in known:
+                known.add(key)
+                new_sensors.append(TdarrSensor(coordinator, library, options, "library"))
+        for node in coordinator.data.get("nodes", {}).values():
+            key = "node_" + node.get("nodeName", node.get("_id", ""))
+            if key not in known:
+                known.add(key)
+                new_sensors.append(TdarrSensor(coordinator, node, options, "node"))
+                new_sensors.append(TdarrSensor(coordinator, node, options, "nodefps"))
+        if new_sensors:
+            async_add_entities(new_sensors)
+
+    _async_add_dynamic_entities()
+    config_entry.async_on_unload(
+        coordinator.async_add_listener(_async_add_dynamic_entities)
+    )
 
 
-class TdarrSensor(
-    TdarrEntity,
-    SensorEntity,
-):
-    def __init__(self, coordinator, sensor, options, type):
+class TdarrSensor(TdarrEntity, SensorEntity):
+    """Representation of a Tdarr sensor."""
 
+    def __init__(self, coordinator, sensor, options, sensor_type):
+        """Initialize the sensor."""
         self.sensor = sensor
         self.tdarroptions = options
-        self.type = type
-        self._attr = {}
-        self.coordinator = coordinator
-        if self.type == "server":
-            self._device_id = "tdarr_server"
-        elif self.type == "node":
-            if "nodeName" in self.sensor:
-                self._device_id = "tdarr_node_" + self.sensor.get("nodeName", "")
-            else:
-                self._device_id = "tdarr_node_" + self.sensor.get("_id", "")
-        elif self.type == "nodefps":
-            if "nodeName" in self.sensor:
-                self._device_id = "tdarr_node_" + self.sensor.get("nodeName","") + "_fps"
-            else:
-                self._device_id = "tdarr_node_" + self.sensor.get("_id", "") + "_fps"
-        elif self.type == "library":
-            self._device_id = "tdarr_library_" + self.sensor["name"]
-        else:
-            self._device_id = "tdarr_" + self.type
-        # Required for HA 2022.7
-        self.coordinator_context = object()
+        self.type = sensor_type
 
+        if self.type == "server":
+            device_id = "tdarr_server"
+        elif self.type == "node":
+            device_id = "tdarr_node_" + self.sensor.get("nodeName", self.sensor.get("_id", ""))
+        elif self.type == "nodefps":
+            device_id = "tdarr_node_" + self.sensor.get("nodeName", self.sensor.get("_id", "")) + "_fps"
+        elif self.type == "library":
+            device_id = "tdarr_library_" + self.sensor["name"]
+        else:
+            device_id = "tdarr_" + self.type
+
+        super().__init__(device_id=device_id, name=device_id, coordinator=coordinator)
+
+    def _find_node(self):
+        """Find this sensor's node in the current coordinator data.
+
+        Nodes are matched by name where possible as the internal ID changes
+        when a node reconnects.
+        """
+        nodes = self.coordinator.data.get("nodes", {})
+        node_name = self.sensor.get("nodeName")
+        if node_name is not None:
+            for node in nodes.values():
+                if node.get("nodeName") == node_name:
+                    return node
+            return None
+        return nodes.get(self.sensor.get("_id"))
+
+    def _find_library(self):
+        """Find this sensor's library in the current coordinator data."""
+        for library in self.coordinator.data.get("libraries", []):
+            if library["name"] == self.sensor["name"]:
+                return library
+        return None
 
     def get_value(self, ftype):
+        """Return the state or attributes for this sensor from coordinator data."""
         if ftype == "state":
             if self.type == "server":
                 return self.coordinator.data.get("server", {}).get("status")
-            elif self.type == "node":
-                return "Online"
-            elif self.type == "nodefps":
+            if self.type == "node":
+                return "Online" if self._find_node() is not None else "Offline"
+            if self.type == "nodefps":
+                node = self._find_node()
+                if node is None:
+                    return None
+                return sum(
+                    worker.get("fps", 0) for worker in node.get("workers", {}).values()
+                )
+            if self.type == "stats_spacesaved":
+                return round(self.coordinator.data.get("stats", {}).get("sizeDiff", 0), 2)
+            if self.type == "stats_transcodefilesremaining":
+                return self.coordinator.data.get("stats", {}).get("table1Count", 0)
+            if self.type == "stats_transcodedcount":
+                return self.coordinator.data.get("stats", {}).get("table2Count", 0)
+            if self.type == "stats_stagedcount":
+                return self.coordinator.data.get("staged", {}).get("totalCount", 0)
+            if self.type == "stats_healthcount":
+                return self.coordinator.data.get("stats", {}).get("table4Count", 0)
+            if self.type == "stats_transcodeerrorcount":
+                return self.coordinator.data.get("stats", {}).get("table3Count", 0)
+            if self.type == "stats_healtherrorcount":
+                return self.coordinator.data.get("stats", {}).get("table6Count", 0)
+            if self.type == "library":
+                library = self._find_library()
+                return library.get("totalFiles") if library else None
+            if self.type == "stats_totalfps":
                 fps = 0
-                for key1, value in self.coordinator.data.get("nodes", {}).get(self.sensor["_id"], {}).get("workers", {}).items():
-                    fps += value.get("fps", 0)
-                return fps
-            elif self.type == "stats_spacesaved":
-                return round(self.coordinator.data.get("stats",{}).get("sizeDiff", 0), 2)
-            elif self.type == "stats_transcodefilesremaining":
-                return self.coordinator.data.get("stats",{}).get("table1Count", 0)
-            elif self.type == "stats_transcodedcount":
-                return self.coordinator.data.get("stats",{}).get("table2Count", 0)
-            elif self.type == "stats_stagedcount":
-                return self.coordinator.data.get("staged",{}).get("totalCount", 0)
-            elif self.type == "stats_healthcount":
-                return self.coordinator.data.get("stats",{}).get("table4Count", 0)
-            elif self.type == "stats_transcodeerrorcount":
-                return self.coordinator.data.get("stats",{}).get("table3Count", 0)
-            elif self.type == "stats_healtherrorcount":
-                return self.coordinator.data.get("stats",{}).get("table6Count", 0)
-            elif self.type == "library":
-                libraries = self.coordinator.data.get("libraries",{})
-                for library in libraries:
-                    if library["name"] == self.sensor["name"]:
-                        _LOGGER.debug(library)
-                        return library["totalFiles"]
-
-            elif self.type == "stats_totalfps":
-                fps = 0
-                for key1, value1 in self.coordinator.data["nodes"].items():
-                    for key2, value2 in value1.get("workers", {}).items():
-                        fps += value2.get("fps", 0)
+                for node in self.coordinator.data.get("nodes", {}).values():
+                    for worker in node.get("workers", {}).values():
+                        fps += worker.get("fps", 0)
                 return fps
 
         if ftype == "attributes":
             if self.type == "server":
                 return self.coordinator.data.get("server", {})
-            elif self.type == "node":
-                return self.coordinator.data.get("nodes",{}).get(self.sensor["_id"], {})
-            elif self.type == "stats_spacesaved":
+            if self.type == "node":
+                return self._find_node() or {}
+            if self.type == "stats_spacesaved":
                 return self.coordinator.data.get("stats", {})
-            elif self.type == "library":
-                libraries = self.coordinator.data.get("libraries",{})
-                for library in libraries:
-                    if library["name"] == self.sensor["name"]:
-                        data = {}
-                        data["Total Files"] = library["totalFiles"]
-                        data["Number of Transcodes"] = library["totalTranscodeCount"]
-                        data["Space Saved (GB)"] = round(library["sizeDiff"], 0)
-                        data["Number of Health Checks"] = library["totalHealthCheckCount"]
-                        codecs = {}
-                        for codec in library.get("video", {}).get("codecs", {}):
-                            codecs[codec["name"]] = codec["value"]
-                        data["Codecs"] = codecs
-                        containers = {}
-                        for container in library.get("video", {}).get("containers", {}):
-                            containers[container["name"]] = container["value"]
-                        data["Containers"] = containers
-                        qualities = {}
-                        for quality in library.get("video", {}).get("resolutions", {}):
-                            qualities[quality["name"]] = quality["value"]
-                        data["Resolutions"] = qualities
-                        return data
-            else:
-                return None
+            if self.type == "library":
+                library = self._find_library()
+                if library is None:
+                    return None
+                data = {}
+                data["Total Files"] = library.get("totalFiles")
+                data["Number of Transcodes"] = library.get("totalTranscodeCount")
+                data["Space Saved (GB)"] = round(library.get("sizeDiff", 0), 0)
+                data["Number of Health Checks"] = library.get("totalHealthCheckCount")
+                data["Codecs"] = {
+                    codec["name"]: codec["value"]
+                    for codec in library.get("video", {}).get("codecs", [])
+                }
+                data["Containers"] = {
+                    container["name"]: container["value"]
+                    for container in library.get("video", {}).get("containers", [])
+                }
+                data["Resolutions"] = {
+                    quality["name"]: quality["value"]
+                    for quality in library.get("video", {}).get("resolutions", [])
+                }
+                return data
+
+        return None
 
     @property
-    def name(self):
-        if self.type == "server":
-            return "tdarr_server"
-        elif self.type == "node":
-            if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.sensor.get("nodeName", "Unknown")
-            else:
-                return "tdarr_node_" + self.sensor.get("_id", "Unknown")
-        elif self.type == "nodefps":
-            if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.sensor.get("nodeName", "Unknown") + "_fps"
-            else:
-                return "tdarr_node_" + self.sensor.get("_id", "Unknown") + "_fps"
-        elif self.type == "library":
-            return "tdarr_library_" + self.sensor["name"]
-        else:
-            return "tdarr_" + self.type
-
-
-    @property
-    def device_id(self):
-        return self.device_id
-    
-    @property 
     def native_value(self):
         return self.get_value("state")
-
 
     @property
     def extra_state_attributes(self):
@@ -174,16 +169,16 @@ class TdarrSensor(
 
     @property
     def native_unit_of_measurement(self):
-        return SENSORS.get(self.type, {}).get("unit_of_measurement", None)
+        return SENSORS.get(self.type, {}).get("unit_of_measurement")
 
     @property
     def device_class(self):
-        return SENSORS.get(self.type, {}).get("device_class", None)
+        return SENSORS.get(self.type, {}).get("device_class")
+
+    @property
+    def state_class(self):
+        return SENSORS.get(self.type, {}).get("state_class")
 
     @property
     def icon(self):
-        return SENSORS.get(self.type, {}).get("icon", None)
-    
-    @property
-    def state_class(self):
-        return None
+        return SENSORS.get(self.type, {}).get("icon")
